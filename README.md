@@ -1,2 +1,15 @@
-# SmartLOTO
-Plataforma de bloqueo digital y mantenimiento predictivo industrial mediante NFC/QR.
+# SmartLOTO - Sistema de Bloqueo Digital y Auditoría Industrial
+
+## Promesa del Proyecto
+Para los jefes de mantenimiento industrial en Chile que sufren pérdidas de tiempo y riesgos de accidentes por el descontrol en los protocolos LOTO (Lockout/Tagout), nuestro producto SmartLOTO entrega un sistema de bloqueo digital mediante NFC/QR que audita el estado de las máquinas en tiempo real.
+
+## Equipo de Trabajo
+* **Vicente** - GitHub: [@Vicente-PR] (Coordinador)
+* **Bastian** - GitHub: [@Usuario2] (Responsable Documento)
+* **Belen** - GitHub: [@Usuario3] (Responsable Prototipo)
+* **Benjamin** - GitHub: [@Usuario4] (Responsable Repositorio)
+
+## Entregables Hito 1
+* [🔗 Prototipo Navegable (Figma)](#)
+* [📄 Documento de Propuesta (PDF)](./docs/Documento_Propuesta_SmartLOTO.pdf)
+* [📊 Láminas de Presentación (PDF)](./docs/Presentacion_SmartLOTO.pdf)
