@@ -6,7 +6,7 @@ Para los jefes de mantenimiento industrial en Chile que sufren pérdidas de tiem
 ## Equipo de Trabajo
 * **Vicente** - GitHub: [@Vicente-PR] (Coordinador)
 * **Bastian** - GitHub: [@Usuario2] (Responsable Documento)
-* **Belén** - GitHub: [@Usuario3] (Responsable Prototipo)
+* **Belén** - GitHub: [@lenbbee] (Responsable Prototipo)
 * **Benjamín** - GitHub: [@Usuario4] (Responsable Repositorio)
 
 ## Entregables Hito 1
