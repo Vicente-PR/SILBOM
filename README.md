@@ -1,4 +1,4 @@
-# SmartLOTO - Sistema de Bloqueo Digital y Auditoría Industrial
+# SILBOM - Sistema Inteligente de Lectura y Bloqueo Operativa de Maquinaria 
 
 ## Promesa del Proyecto
 Para los jefes de mantenimiento industrial en Chile que sufren pérdidas de tiempo y riesgos de accidentes por el descontrol en los protocolos LOTO (Lockout/Tagout), nuestro producto SmartLOTO entrega un sistema de bloqueo digital mediante NFC/QR que audita el estado de las máquinas en tiempo real.
