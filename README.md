@@ -10,6 +10,6 @@ Para los jefes de mantenimiento industrial en Chile que sufren pérdidas de tiem
 * **Benjamín** - GitHub: [@BenjaHK] (Responsable Repositorio)
 
 ## Entregables Hito 1
-* [🔗 Prototipo Navegable (HTML)](silbom.netlify.app (código fuente en prototipo/index.html))
+* [🔗 Prototipo Navegable (Netlify)](silbom.netlify.app)
 * [📄 Documento de Propuesta (PDF)](docs/SILBOM_Propuesta_Hito1.pdf)
 * [📊 Láminas de Presentación (PDF)](docs/SILBOM_Presentacion_Hito1.pdf)
