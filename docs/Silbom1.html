@@ -1,0 +1,2111 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SILBOM · Gemelo Digital de Bloqueo LOTO y Seguridad Industrial</title>
+  <style>
+    /* ==========================================================================
+       SISTEMA DE DISEÑO OFICIAL SILBOM · PALETA DE COLORES
+       1. Colores principales de la interfaz:
+          - Azul industrial:         #0CB7F2 (Botones, navegación activa, interactivos)
+          - Azul industrial oscuro:  #0798C9 (Hover y énfasis interactivo)
+          - Grafito industrial:      #252A2E (Fondo principal del dashboard)
+          - Grafito profundo:        #22272B (Barra lateral, encabezados y navegación)
+          - Gris acero:              #343C42 (Tarjetas, paneles, contenedores, formularios)
+          - Gris metálico:           #56616A (Bordes y separadores)
+          - Blanco:                  #FFFFFF (Títulos y textos principales)
+          - Gris claro:              #C4CDD5 (Textos secundarios y descripciones)
+          - Texto grafito:           #17252D (Texto legible sobre Azul Industrial)
+
+       2. Colores funcionales de seguridad industrial (Estrictamente funcionales):
+          - Verde seguridad:         #66DDB0 (Estados seguros y operativos)
+          - Ámbar industrial:        #F5A623 (Solo advertencias y procesos pendientes)
+          - Rojo peligro:            #FF7379 (Alertas críticas y Bloqueo LOTO activo)
+       ========================================================================== */
+    :root {
+      /* Modo Oscuro por defecto */
+      --azul-industrial: #0CB7F2;
+      --azul-industrial-dark: #0798C9;
+      --azul-pale: rgba(12, 183, 242, 0.14);
+      
+      --grafito-industrial: #252A2E;
+      --grafito-profundo: #22272B;
+      --gris-acero: #343C42;
+      --gris-metalico: #56616A;
+      --blanco: #FFFFFF;
+      --gris-claro: #C4CDD5;
+      --texto-grafito: #17252D;
+      
+      /* Seguridad Industrial Funcional */
+      --verde-seguridad: #66DDB0;
+      --verde-pale: rgba(102, 221, 176, 0.14);
+      
+      --ambar-industrial: #F5A623;
+      --ambar-pale: rgba(245, 166, 35, 0.14);
+      
+      --rojo-peligro: #FF7379;
+      --rojo-pale: rgba(255, 115, 121, 0.14);
+
+      /* Mapeo Semántico */
+      --bg-body: var(--grafito-industrial);
+      --bg-header: var(--grafito-profundo);
+      --bg-card: var(--gris-acero);
+      --bg-input: var(--grafito-profundo);
+      --border-color: var(--gris-metalico);
+      --border-active: var(--azul-industrial);
+      
+      --text-main: var(--blanco);
+      --text-muted: var(--gris-claro);
+      --text-dim: #8E9CA8;
+
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --shadow-sm: 0 4px 14px rgba(0,0,0,0.25);
+      --shadow-lg: 0 16px 40px rgba(0,0,0,0.42);
+      --transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    [data-theme="light"] {
+      /* Modo Claro Oficial */
+      --grafito-industrial: #FFFFFF;
+      --grafito-profundo: #F4F7F9;
+      --gris-acero: #FFFFFF;
+      --gris-metalico: #C9D3D9;
+      --blanco: #17252D;
+      --gris-claro: #52616D;
+      --text-dim: #798895;
+
+      --bg-body: #F4F7F9;
+      --bg-header: #FFFFFF;
+      --bg-card: #FFFFFF;
+      --bg-input: #FFFFFF;
+      --border-color: #C9D3D9;
+      
+      --text-main: #17252D;
+      --text-muted: #52616D;
+      
+      --shadow-sm: 0 4px 12px rgba(0,0,0,0.06);
+      --shadow-lg: 0 16px 36px rgba(0,0,0,0.12);
+    }
+
+    /* ==========================================================================
+       RESET Y BASE
+       ========================================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.28s ease, color 0.28s ease;
+      line-height: 1.5;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    input, select {
+      font-family: inherit;
+    }
+
+    /* ==========================================================================
+       BARRA SUPERIOR GLOBAL (HEADER)
+       ========================================================================== */
+    .top-navbar {
+      background-color: var(--bg-header);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      user-select: none;
+    }
+
+    /* Emblema con Azul Industrial (#0CB7F2) y Grafito */
+    .brand-emblem {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--gris-acero) 0%, var(--grafito-profundo) 100%);
+      border: 1.8px solid var(--azul-industrial);
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 14px var(--azul-pale), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+      flex-shrink: 0;
+      transition: var(--transition);
+    }
+
+    .brand-emblem:hover {
+      transform: scale(1.05);
+      border-color: var(--azul-industrial-dark);
+      box-shadow: 0 0 20px rgba(12, 183, 242, 0.35);
+    }
+
+    .brand-emblem svg {
+      width: 24px;
+      height: 24px;
+      display: block;
+    }
+
+    .brand-text-group {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .brand-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: var(--text-main);
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .brand-subtitle {
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 1.4px;
+      color: var(--azul-industrial);
+      text-transform: uppercase;
+      margin-top: 3px;
+      line-height: 1;
+    }
+
+    .brand-badge {
+      font-size: 0.72rem;
+      background-color: var(--azul-pale);
+      color: var(--azul-industrial);
+      border: 1px solid var(--azul-industrial);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .view-switcher {
+      display: flex;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .view-btn {
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: transparent;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .view-btn:hover {
+      color: var(--text-main);
+    }
+
+    /* Nota de diseño: Botones con fondo azul industrial (#0CB7F2) llevan texto grafito (#17252D) */
+    .view-btn.active {
+      background-color: var(--azul-industrial);
+      color: var(--texto-grafito);
+    }
+
+    .theme-toggle-btn {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .theme-toggle-btn:hover {
+      border-color: var(--azul-industrial);
+    }
+
+    .reset-demo-btn {
+      background-color: transparent;
+      border: 1px dashed var(--border-color);
+      color: var(--text-muted);
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .reset-demo-btn:hover {
+      border-color: var(--rojo-peligro);
+      color: var(--rojo-peligro);
+    }
+
+    /* ==========================================================================
+       CONTENEDOR PRINCIPAL Y MODOS DE VISTA
+       ========================================================================== */
+    .main-container {
+      flex: 1;
+      padding: 24px;
+      max-width: 1440px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 28px;
+    }
+
+    /* Modo Pantalla Dividida (Split): Ideal para Proyectar en la Presentación */
+    .main-container.mode-split {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      align-items: start;
+    }
+
+    @media (max-width: 1100px) {
+      .main-container.mode-split {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ==========================================================================
+       VISTA 1: TERMINAL MÓVIL DEL TÉCNICO (EXPERIENCIA EN TERRENO)
+       ========================================================================== */
+    .mobile-frame-wrapper {
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    .mobile-device {
+      background-color: var(--bg-card);
+      border: 2px solid var(--border-color);
+      border-radius: 32px;
+      padding: 20px;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mobile-status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-weight: 700;
+      margin-bottom: 14px;
+      padding: 0 4px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    /* Stepper Indicador de 3 Pantallas Encadenadas (Criterio A2) */
+    .screen-stepper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding: 0 4px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      transition: var(--transition);
+    }
+
+    .step-indicator .step-badge {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 800;
+    }
+
+    /* Paso Activo: Azul Industrial con Texto Grafito */
+    .step-indicator.active {
+      color: var(--azul-industrial);
+    }
+
+    .step-indicator.active .step-badge {
+      background: var(--azul-industrial);
+      color: var(--texto-grafito);
+      border-color: var(--azul-industrial);
+    }
+
+    /* Paso Completado: Verde Seguridad */
+    .step-indicator.completed {
+      color: var(--verde-seguridad);
+    }
+
+    .step-indicator.completed .step-badge {
+      background: var(--verde-pale);
+      color: var(--verde-seguridad);
+      border-color: var(--verde-seguridad);
+    }
+
+    /* Paso en Bloqueo Crítico: Rojo Peligro */
+    .step-indicator.locked-active {
+      color: var(--rojo-peligro);
+    }
+
+    .step-indicator.locked-active .step-badge {
+      background: var(--rojo-peligro);
+      color: #FFFFFF;
+      border-color: var(--rojo-peligro);
+      animation: pulseAlert 1.5s infinite;
+    }
+
+    .step-connector-line {
+      flex: 1;
+      height: 2px;
+      background: var(--border-color);
+      margin: 0 8px;
+      transition: var(--transition);
+    }
+
+    .step-connector-line.active {
+      background: var(--azul-industrial);
+    }
+
+    .mobile-screen-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mobile-subtitle {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+
+    /* Paso 1: Identificación */
+    .nfc-tap-area {
+      background: var(--bg-input);
+      border: 2px dashed var(--azul-industrial);
+      border-radius: var(--radius-md);
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition);
+      margin-bottom: 18px;
+    }
+
+    .nfc-tap-area:hover {
+      background: var(--azul-pale);
+      border-color: var(--azul-industrial);
+      transform: translateY(-2px);
+    }
+
+    .nfc-pulse-ring {
+      width: 64px;
+      height: 64px;
+      background: var(--azul-pale);
+      border: 2px solid var(--azul-industrial);
+      border-radius: 50%;
+      margin: 0 auto 12px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.7rem;
+      animation: pulseAnimation 2s infinite;
+    }
+
+    @keyframes pulseAnimation {
+      0% { box-shadow: 0 0 0 0 rgba(12, 183, 242, 0.4); }
+      70% { box-shadow: 0 0 0 16px rgba(12, 183, 242, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(12, 183, 242, 0); }
+    }
+
+    .nfc-tap-btn {
+      background: var(--azul-industrial);
+      color: var(--texto-grafito);
+      font-weight: 800;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      margin-top: 10px;
+      display: inline-block;
+      transition: var(--transition);
+    }
+
+    .nfc-tap-btn:hover {
+      background: var(--azul-industrial-dark);
+    }
+
+    .or-divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin: 14px 0;
+    }
+
+    .or-divider::before, .or-divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .or-divider span {
+      padding: 0 10px;
+    }
+
+    .machine-quick-select {
+      width: 100%;
+      padding: 11px 12px;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-size: 0.88rem;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .machine-quick-select:focus {
+      border-color: var(--azul-industrial);
+    }
+
+    /* Paso 2: Formulario de Bloqueo Ágil */
+    .target-machine-card {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .target-machine-icon {
+      width: 44px;
+      height: 44px;
+      background: var(--azul-pale);
+      border: 1px solid var(--azul-industrial);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+
+    .target-machine-info h3 {
+      font-size: 0.95rem;
+      color: var(--text-main);
+      font-weight: 800;
+    }
+
+    .target-machine-info p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .intervention-type-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .type-card {
+      background: var(--bg-input);
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 12px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .type-card:hover {
+      border-color: var(--text-muted);
+    }
+
+    .type-card.selected {
+      border-color: var(--azul-industrial);
+      background: var(--azul-pale);
+    }
+
+    .type-card .icon {
+      font-size: 1.5rem;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .type-card .title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: var(--text-main);
+      display: block;
+    }
+
+    .type-card .desc {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: block;
+    }
+
+    .field-group {
+      margin-bottom: 14px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .field-select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-size: 0.85rem;
+    }
+
+    .field-select:focus {
+      border-color: var(--azul-industrial);
+    }
+
+    .legal-confirmation-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      margin-bottom: 18px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .legal-confirmation-box input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--azul-industrial);
+      cursor: pointer;
+      margin-top: 2px;
+    }
+
+    .legal-confirmation-box label {
+      font-size: 0.76rem;
+      color: var(--text-main);
+      font-weight: 700;
+      line-height: 1.4;
+      cursor: pointer;
+    }
+
+    /* Botón de Peligro / Acción Crítica de Bloqueo LOTO */
+    .btn-action-primary {
+      width: 100%;
+      padding: 13px;
+      background: var(--rojo-peligro);
+      color: #FFFFFF;
+      font-size: 0.95rem;
+      font-weight: 800;
+      border-radius: var(--radius-md);
+      box-shadow: 0 4px 14px rgba(255, 115, 121, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-action-primary:hover:not(:disabled) {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .btn-action-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Paso 3: Bloqueo Activo y Desbloqueo */
+    .locked-state-banner {
+      background: var(--rojo-pale);
+      border: 2px solid var(--rojo-peligro);
+      border-radius: var(--radius-md);
+      padding: 18px 14px;
+      text-align: center;
+      margin-bottom: 16px;
+      animation: pulseBorder 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseBorder {
+      0% { border-color: rgba(255, 115, 121, 0.4); }
+      50% { border-color: rgba(255, 115, 121, 1); }
+      100% { border-color: rgba(255, 115, 121, 0.4); }
+    }
+
+    .locked-state-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--rojo-peligro);
+      color: #FFFFFF;
+      font-weight: 800;
+      font-size: 0.78rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .locked-machine-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .locked-timer-display {
+      font-size: 1.9rem;
+      font-weight: 900;
+      color: var(--rojo-peligro);
+      font-variant-numeric: tabular-nums;
+      margin: 6px 0;
+    }
+
+    .locked-details-table {
+      width: 100%;
+      margin: 14px 0;
+      font-size: 0.8rem;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .locked-details-table td {
+      padding: 6px 4px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .locked-details-table td.label {
+      color: var(--text-muted);
+      font-weight: 600;
+      width: 40%;
+    }
+
+    .locked-details-table td.val {
+      color: var(--text-main);
+      font-weight: 700;
+    }
+
+    /* Botón de Seguridad / Restablecer Estado Seguro */
+    .btn-action-unlock {
+      width: 100%;
+      padding: 13px;
+      background: var(--verde-seguridad);
+      color: var(--texto-grafito);
+      font-size: 0.95rem;
+      font-weight: 800;
+      border-radius: var(--radius-md);
+      box-shadow: 0 4px 14px rgba(102, 221, 176, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-action-unlock:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+
+    /* ==========================================================================
+       VISTA 2: CONSOLA DE SUPERVISIÓN WEB (JEFATURA DE PLANTA)
+       ========================================================================== */
+    .supervisor-dashboard {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* KPIs Superiores */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .kpi-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--text-main);
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .kpi-value span.unit {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .kpi-status-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 8px;
+      align-self: flex-start;
+    }
+
+    /* Tags Funcionales */
+    .tag-green {
+      background: var(--verde-pale);
+      color: var(--verde-seguridad);
+      border: 1px solid var(--verde-seguridad);
+    }
+
+    .tag-red {
+      background: var(--rojo-pale);
+      color: var(--rojo-peligro);
+      border: 1px solid var(--rojo-peligro);
+    }
+
+    /* Ámbar industrial: estrictamente funcional para advertencias */
+    .tag-amber {
+      background: var(--ambar-pale);
+      color: var(--ambar-industrial);
+      border: 1px solid var(--ambar-industrial);
+    }
+
+    .tag-blue {
+      background: var(--azul-pale);
+      color: var(--azul-industrial);
+      border: 1px solid var(--azul-industrial);
+    }
+
+    /* Layout Central Dashboard (2 Columnas) */
+    .dashboard-content-split {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 1080px) {
+      .dashboard-content-split {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .dashboard-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .panel-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .panel-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Grid de Máquinas de la Planta */
+    .machines-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+    }
+
+    .machine-status-card {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .machine-status-card:hover {
+      border-color: var(--azul-industrial);
+      transform: translateY(-2px);
+    }
+
+    .machine-status-card.selected-asset {
+      border: 2px solid var(--azul-industrial);
+      box-shadow: 0 0 0 2px var(--azul-pale);
+    }
+
+    .machine-status-card.is-locked {
+      border: 2px solid var(--rojo-peligro);
+      background: var(--rojo-pale);
+    }
+
+    .machine-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .machine-code-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      background: var(--bg-card);
+      color: var(--text-muted);
+      padding: 3px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+    }
+
+    .machine-state-pill {
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pill-operational {
+      background: var(--verde-pale);
+      color: var(--verde-seguridad);
+      border: 1px solid var(--verde-seguridad);
+    }
+
+    .pill-locked {
+      background: var(--rojo-peligro);
+      color: #FFFFFF;
+      animation: pulseAlert 1.5s infinite;
+    }
+
+    @keyframes pulseAlert {
+      0% { opacity: 0.85; }
+      50% { opacity: 1; }
+      100% { opacity: 0.85; }
+    }
+
+    .machine-card-name {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .machine-card-area {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .machine-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.76rem;
+      color: var(--text-dim);
+      border-top: 1px solid var(--border-color);
+      padding-top: 8px;
+    }
+
+    .machine-card-footer span.bold {
+      font-weight: 800;
+      color: var(--azul-industrial);
+    }
+
+    /* Módulo MTBF Explicativo */
+    .mtbf-explanation-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .formula-display {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      text-align: center;
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: var(--azul-industrial);
+      margin: 8px 0;
+      font-weight: 800;
+    }
+
+    .mtbf-breakdown {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 0.8rem;
+      margin-top: 10px;
+    }
+
+    .breakdown-item {
+      background: var(--bg-card);
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .breakdown-label {
+      color: var(--text-muted);
+      display: block;
+      font-size: 0.72rem;
+    }
+
+    .breakdown-val {
+      color: var(--text-main);
+      font-weight: 800;
+      font-size: 0.88rem;
+    }
+
+    /* Tabla de Historial Reciente */
+    .audit-table-wrap {
+      overflow-x: auto;
+    }
+
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      text-align: left;
+    }
+
+    .audit-table th {
+      color: var(--text-muted);
+      font-weight: 700;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-input);
+    }
+
+    .audit-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    .audit-table tr:hover td {
+      background-color: var(--bg-input);
+    }
+
+    /* Notificación Toast */
+    .toast-notification {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border-left: 4px solid var(--azul-industrial);
+      color: var(--text-main);
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-lg);
+      font-size: 0.85rem;
+      font-weight: 700;
+      z-index: 1000;
+      transform: translateY(120px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toast-notification.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       BARRA SUPERIOR GLOBAL
+       ======================================================================== -->
+  <header class="top-navbar">
+    <div class="brand-section">
+      <div class="brand-logo-container">
+        <!-- Emblema: Candado de Seguridad con Sensor NFC en Azul Industrial (#0CB7F2) -->
+        <div class="brand-emblem" title="SILBOM · Seguridad Industrial Digital">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Arco del Candado -->
+            <path d="M7 10V7.5C7 4.74 9.24 2.5 12 2.5C14.76 2.5 17 4.74 17 7.5V10" stroke="#0CB7F2" stroke-width="2.4" stroke-linecap="round"/>
+            <!-- Cuerpo del Candado -->
+            <rect x="4" y="9.5" width="16" height="12" rx="3" fill="#0CB7F2"/>
+            <!-- Ondas NFC y Núcleo Digital -->
+            <circle cx="12" cy="15.5" r="1.8" fill="#17252D"/>
+            <path d="M12 17.3V19" stroke="#17252D" stroke-width="1.8" stroke-linecap="round"/>
+            <!-- Arcos Contactless / NFC -->
+            <path d="M9.2 13.5C10 12.7 11 12.3 12 12.3C13 12.3 14 12.7 14.8 13.5" stroke="#17252D" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M7.8 11.8C9 10.7 10.5 10.1 12 10.1C13.5 10.1 15 10.7 16.2 11.8" stroke="#17252D" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="brand-text-group">
+          <span class="brand-title">SILBOM</span>
+          <span class="brand-subtitle">SEGURIDAD LOTO</span>
+        </div>
+      </div>
+      <span class="brand-badge">Hito 1 · Demo</span>
+    </div>
+
+    <div class="nav-controls">
+      <!-- Selector de Modo de Vista para la presentación -->
+      <div class="view-switcher" role="tablist">
+        <button class="view-btn active" id="btn-view-split" onclick="switchDisplayMode('split')" title="Ver Móvil y Consola al mismo tiempo (Ideal para proyectar)">
+          <span>⚡</span> Pantalla Dividida
+        </button>
+        <button class="view-btn" id="btn-view-tech" onclick="switchDisplayMode('tech')">
+          <span>📱</span> Técnico (Móvil)
+        </button>
+        <button class="view-btn" id="btn-view-supervisor" onclick="switchDisplayMode('supervisor')">
+          <span>🖥️</span> Consola Supervisión
+        </button>
+      </div>
+
+      <!-- Toggle Modo Claro / Oscuro -->
+      <button class="theme-toggle-btn" id="theme-toggle" onclick="toggleTheme()" title="Alternar Modo Claro / Oscuro">
+        <span id="theme-icon">☀️</span> <span id="theme-text">Modo Claro</span>
+      </button>
+
+      <!-- Reiniciar Demo -->
+      <button class="reset-demo-btn" onclick="resetPrototypeDemo()" title="Reiniciar datos de demostración">
+        🔄 Reiniciar
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       CONTENEDOR PRINCIPAL
+       ======================================================================== -->
+  <main class="main-container mode-split" id="main-layout-container">
+
+    <!-- ======================================================================
+         VISTA 1: TERMINAL MÓVIL DEL TÉCNICO (EXPERIENCIA EN TERRENO)
+         ====================================================================== -->
+    <div class="mobile-frame-wrapper" id="view-tech-container">
+      <div class="mobile-device">
+        <div class="mobile-status-bar">
+          <span>SILBOM Mobile v1.0</span>
+          <span id="mobile-live-clock">12:00</span>
+          <span>📶 NFC Listo</span>
+        </div>
+
+        <!-- INDICADOR VISUAL DE 3 PANTALLAS ENCADENADAS (Criterio A2) -->
+        <div class="screen-stepper" aria-label="Flujo de 3 pantallas encadenadas">
+          <div class="step-indicator active" id="stepper-item-1">
+            <span class="step-badge">1</span>
+            <span>Identificar</span>
+          </div>
+          <div class="step-connector-line" id="stepper-line-1"></div>
+          <div class="step-indicator" id="stepper-item-2">
+            <span class="step-badge">2</span>
+            <span>Bloqueo</span>
+          </div>
+          <div class="step-connector-line" id="stepper-line-2"></div>
+          <div class="step-indicator" id="stepper-item-3">
+            <span class="step-badge">3</span>
+            <span>En Curso</span>
+          </div>
+        </div>
+
+        <!-- PASO 1: IDENTIFICACIÓN POR NFC O CÓDIGO -->
+        <div id="tech-step-1">
+          <h2 class="mobile-screen-title">🔒 Punto de Bloqueo</h2>
+          <p class="mobile-subtitle">Acerque su smartphone al tag NFC de la máquina o elija el equipo de la lista.</p>
+
+          <!-- Zona de Tap NFC -->
+          <div class="nfc-tap-area" onclick="simulateNfcTap('EQ-ENV-01')">
+            <div class="nfc-pulse-ring">📡</div>
+            <strong style="color: var(--text-main); display: block; font-size: 0.95rem;">Toque con el Teléfono (NFC)</strong>
+            <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 4px;">
+              Sticker pasivo NTAG213 adherido al chasis
+            </span>
+            <div class="nfc-tap-btn">▶ Simular Tap NFC (Envasadora)</div>
+          </div>
+
+          <div class="or-divider"><span>O SELECCIÓN RÁPIDA MANUAL</span></div>
+
+          <div class="field-group">
+            <label class="field-label" for="manual-machine-select">Activos de la Planta:</label>
+            <select class="machine-quick-select" id="manual-machine-select" onchange="simulateManualSelect(this.value)">
+              <option value="" disabled selected>-- Seleccione una máquina --</option>
+              <option value="EQ-ENV-01">EQ-ENV-01 · Envasadora Rotativa Automática</option>
+              <option value="EQ-PR-04">EQ-PR-04 · Prensa Hidráulica 200T</option>
+              <option value="EQ-EXT-02">EQ-EXT-02 · Extrusora de Polímeros</option>
+              <option value="EQ-MEZ-01">EQ-MEZ-01 · Mezclador Industrial de Cinta</option>
+              <option value="EQ-COM-03">EQ-COM-03 · Compresor de Tornillo</option>
+              <option value="EQ-TR-01">EQ-TR-01 · Cinta Transportadora Principal</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- PASO 2: FORMULARIO ÁGIL DE BLOQUEO LOTO -->
+        <div id="tech-step-2" class="hidden">
+          <div class="target-machine-card">
+            <div class="target-machine-icon" id="target-card-icon">📦</div>
+            <div class="target-machine-info">
+              <h3 id="form-machine-code">EQ-ENV-01</h3>
+              <p id="form-machine-name">Envasadora Rotativa Automática</p>
+              <p style="color: var(--verde-seguridad); font-size: 0.72rem; font-weight: 800;">🟢 ESTADO: OPERATIVO</p>
+            </div>
+          </div>
+
+          <label class="field-label">1. Seleccione Tipo de Bloqueo:</label>
+          <div class="intervention-type-group">
+            <div class="type-card selected" id="card-type-corrective" onclick="selectInterventionType('correctiva')">
+              <span class="icon">🛠️</span>
+              <span class="title">Falla Correctiva</span>
+              <span class="desc">Avería no programada</span>
+            </div>
+            <div class="type-card" id="card-type-preventive" onclick="selectInterventionType('preventiva')">
+              <span class="icon">⚙️</span>
+              <span class="title">Mantención Prev.</span>
+              <span class="desc">Pauta programada</span>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="field-reason">2. Motivo Específico:</label>
+            <select class="field-select" id="field-reason">
+              <!-- Se puebla dinámicamente según el tipo -->
+            </select>
+          </div>
+
+          <div class="legal-confirmation-box">
+            <input type="checkbox" id="check-padlock" onchange="toggleSubmitButton()">
+            <label for="check-padlock">
+              <strong>Cumplimiento Legal (DS 594):</strong> Aplicaré mi candado físico personal y tarjeta de advertencia en el desconectador principal antes de intervenir.
+            </label>
+          </div>
+
+          <button class="btn-action-primary" id="btn-submit-lock" disabled onclick="executeDigitalLock()">
+            🔒 ACTIVAR BLOQUEO DIGITAL LOTO
+          </button>
+
+          <button style="width: 100%; background: transparent; color: var(--text-dim); margin-top: 12px; font-size: 0.82rem;" onclick="cancelToStep1()">
+            ← Cancelar y volver
+          </button>
+        </div>
+
+        <!-- PASO 3: ESTADO BLOQUEADO Y DESBLOQUEO RÁPIDO -->
+        <div id="tech-step-3" class="hidden">
+          <div class="locked-state-banner">
+            <div class="locked-state-badge">🔴 BLOQUEO LOTO ACTIVO</div>
+            <div class="locked-machine-title" id="locked-banner-machine">EQ-ENV-01 · Envasadora Rotativa</div>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">Activo desenergizado y asegurado</div>
+            <div class="locked-timer-display" id="active-lock-timer">00:00:00</div>
+            <span style="font-size: 0.72rem; color: var(--text-dim);">Cronómetro en línea de fuego</span>
+          </div>
+
+          <table class="locked-details-table">
+            <tr>
+              <td class="label">Técnico Resp.:</td>
+              <td class="val">Benjamín V. (Turno A)</td>
+            </tr>
+            <tr>
+              <td class="label">Tipo de Orden:</td>
+              <td class="val" id="locked-detail-type">Falla Correctiva</td>
+            </tr>
+            <tr>
+              <td class="label">Motivo:</td>
+              <td class="val" id="locked-detail-reason">Atascamiento de cabezal</td>
+            </tr>
+            <tr>
+              <td class="label">Inicio Bloqueo:</td>
+              <td class="val" id="locked-detail-time">Hoy, 12:04 hrs</td>
+            </tr>
+            <tr>
+              <td class="label">Consola Central:</td>
+              <td class="val" style="color: var(--rojo-peligro);">Sincronizada (Rojo Crítico)</td>
+            </tr>
+          </table>
+
+          <div style="background: var(--bg-input); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 14px; font-size: 0.78rem; color: var(--text-muted); border-left: 3px solid var(--verde-seguridad);">
+            💡 <strong>Procedimiento de Desbloqueo:</strong> Verifique el área despejada y retire su candado físico antes de liberar el activo digitalmente.
+          </div>
+
+          <button class="btn-action-unlock" onclick="executeDigitalUnlock()">
+            🔓 RETIRAR CANDADO Y LIBERAR EQUIPO
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         VISTA 2: CONSOLA DE SUPERVISIÓN WEB (JEFATURA DE PLANTA)
+         ====================================================================== -->
+    <div class="supervisor-dashboard" id="view-supervisor-container">
+      
+      <!-- KPIs Superiores de Planta -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span>SEGURIDAD EN PLANTA</span>
+            <span>🏭</span>
+          </div>
+          <div class="kpi-value" id="kpi-active-count">
+            0 <span class="unit">Bloqueos LOTO</span>
+          </div>
+          <span class="kpi-status-tag tag-green" id="kpi-plant-tag">Todos los equipos operativos</span>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span>TÉCNICOS EN TERRENO</span>
+            <span>👷</span>
+          </div>
+          <div class="kpi-value" id="kpi-tech-count">
+            0 <span class="unit">activos</span>
+          </div>
+          <span class="kpi-status-tag tag-green" id="kpi-tech-tag">Sin riesgo de atrapamiento</span>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span>MTBF OPERATIVO PLANTA</span>
+            <span>📊</span>
+          </div>
+          <div class="kpi-value" id="kpi-plant-mtbf">
+            424.8 <span class="unit">hrs</span>
+          </div>
+          <span class="kpi-status-tag tag-blue">Confiabilidad calculada</span>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span>AUDITORÍA LEGAL</span>
+            <span>⚖️</span>
+          </div>
+          <div class="kpi-value">
+            100% <span class="unit">DS 594</span>
+          </div>
+          <span class="kpi-status-tag tag-green">Trazabilidad en tiempo real</span>
+        </div>
+      </div>
+
+      <!-- Layout Central Dividido -->
+      <div class="dashboard-content-split">
+        
+        <!-- Columna Izquierda: Grid de Activos en Planta -->
+        <div class="dashboard-panel">
+          <div class="panel-title-row">
+            <h2 class="panel-title">
+              <span>📍</span> Activos Monitoreados · Planta San Joaquín (6 Equipos)
+            </h2>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">Actualización en vivo</span>
+          </div>
+
+          <div class="machines-grid" id="machines-plant-grid">
+            <!-- Renderizado dinámico vía JavaScript -->
+          </div>
+        </div>
+
+        <!-- Columna Derecha: Análisis de MTBF & Trazabilidad -->
+        <div class="dashboard-panel">
+          <div class="panel-title-row">
+            <h2 class="panel-title">
+              <span>📈</span> MTBF Operativo (Tiempo Medio Entre Fallas)
+            </h2>
+            <span style="font-size: 0.75rem; color: var(--azul-industrial); font-weight: 700;">Analítica Backend</span>
+          </div>
+
+          <!-- Caja de Explicación y Cálculo de MTBF -->
+          <div class="mtbf-explanation-box">
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px;">
+              <strong>Equipo seleccionado:</strong> <span id="mtbf-machine-name" style="color: var(--text-main); font-weight: 800;">EQ-ENV-01 · Envasadora Rotativa</span>
+            </p>
+            
+            <div class="formula-display">
+              MTBF = Tiempo Operativo / N° Fallas Correctivas
+            </div>
+
+            <p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.4;">
+              SmartLOTO procesa los <em>timestamps</em> de bloqueo y desbloqueo en la base de datos PostgreSQL. Solo las <strong>fallas correctivas</strong> computan para el desgaste real; las mantenciones preventivas no penalizan el indicador.
+            </p>
+
+            <div class="mtbf-breakdown">
+              <div class="breakdown-item">
+                <span class="breakdown-label">Periodo Observado:</span>
+                <span class="breakdown-val">720 hrs (30 días)</span>
+              </div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Tiempo Parada Correctiva:</span>
+                <span class="breakdown-val" id="mtbf-stat-downtime">18.5 hrs</span>
+              </div>
+              <div class="breakdown-item">
+                <span class="breakdown-label">Fallas Correctivas:</span>
+                <span class="breakdown-val" id="mtbf-stat-failures">3 eventos</span>
+              </div>
+              <div class="breakdown-item" style="border-color: var(--azul-industrial);">
+                <span class="breakdown-label" style="color: var(--azul-industrial);">MTBF Operativo:</span>
+                <span class="breakdown-val" id="mtbf-stat-result" style="color: var(--azul-industrial);">233.8 hrs</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Historial de Auditoría Reciente -->
+          <h3 style="font-size: 0.9rem; font-weight: 800; margin: 16px 0 10px 0; color: var(--text-main);">
+            📋 Registro de Bloqueos LOTO (Últimos Eventos)
+          </h3>
+
+          <div class="audit-table-wrap">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>Fecha/Hora</th>
+                  <th>Equipo</th>
+                  <th>Tipo</th>
+                  <th>Técnico</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="audit-log-body">
+                <!-- Se inyecta dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ========================================================================
+       TOAST DE NOTIFICACIÓN
+       ======================================================================== -->
+  <div class="toast-notification" id="app-toast">
+    <span id="toast-icon">🔔</span>
+    <span id="toast-message">Mensaje del sistema</span>
+  </div>
+
+  <!-- ========================================================================
+       LÓGICA JAVASCRIPT (Robusta, Libre de Errores y Sincronizada)
+       ======================================================================== -->
+  <script>
+    /* ==========================================================================
+       ESTADO CENTRAL DE LA APLICACIÓN
+       ========================================================================== */
+    const AppState = {
+      theme: 'dark',
+      displayMode: 'split',     // 'split' | 'tech' | 'supervisor'
+      currentStep: 1,           // 1: Scan, 2: Form, 3: Locked
+      selectedMachineId: 'EQ-ENV-01',
+      selectedType: 'correctiva', // 'correctiva' | 'preventiva'
+      activeLock: null,         // Datos del bloqueo activo si existe
+      timerInterval: null,
+      timerSeconds: 0,
+      
+      // Catálogo de Activos Industriales (Mediana Empresa Manufacturera)
+      machines: [
+        {
+          id: 'EQ-ENV-01',
+          name: 'Envasadora Rotativa Automática',
+          area: 'Línea de Envasado 1',
+          icon: '📦',
+          isLocked: false,
+          operatingHours: 701.5,
+          correctiveFailures: 3,
+          mtbf: 233.8
+        },
+        {
+          id: 'EQ-PR-04',
+          name: 'Prensa Hidráulica 200T',
+          area: 'Área de Estampado',
+          icon: '⚙️',
+          isLocked: false,
+          operatingHours: 712.0,
+          correctiveFailures: 2,
+          mtbf: 356.0
+        },
+        {
+          id: 'EQ-EXT-02',
+          name: 'Extrusora de Polímeros',
+          area: 'Área de Moldeo',
+          icon: '🔄',
+          isLocked: false,
+          operatingHours: 685.2,
+          correctiveFailures: 4,
+          mtbf: 171.3
+        },
+        {
+          id: 'EQ-MEZ-01',
+          name: 'Mezclador Industrial de Cinta',
+          area: 'Área de Preparación',
+          icon: '🥣',
+          isLocked: false,
+          operatingHours: 715.0,
+          correctiveFailures: 1,
+          mtbf: 715.0
+        },
+        {
+          id: 'EQ-COM-03',
+          name: 'Compresor de Tornillo',
+          area: 'Sala de Máquinas',
+          icon: '💨',
+          isLocked: false,
+          operatingHours: 718.5,
+          correctiveFailures: 1,
+          mtbf: 718.5
+        },
+        {
+          id: 'EQ-TR-01',
+          name: 'Cinta Transportadora Principal',
+          area: 'Logística y Despacho',
+          icon: '🏗️',
+          isLocked: false,
+          operatingHours: 708.0,
+          correctiveFailures: 2,
+          mtbf: 354.0
+        }
+      ],
+
+      // Bitácora de Auditoría
+      auditLogs: [
+        {
+          time: 'Ayer, 16:30',
+          machineId: 'EQ-PR-04',
+          type: 'Preventiva',
+          technician: 'Carlos R.',
+          status: 'Cerrado (45 min)'
+        },
+        {
+          time: 'Ayer, 09:15',
+          machineId: 'EQ-EXT-02',
+          type: 'Correctiva',
+          technician: 'Vicente M.',
+          status: 'Cerrado (1.2 hrs)'
+        },
+        {
+          time: '23 Sep, 11:20',
+          machineId: 'EQ-ENV-01',
+          type: 'Correctiva',
+          technician: 'Benjamín V.',
+          status: 'Cerrado (35 min)'
+        }
+      ]
+    };
+
+    /* ==========================================================================
+       SONIDOS SINTÉTICOS Y RETROALIMENTACIÓN HÁPTICA (Web Audio API)
+       Cero dependencias externas: Funciona 100% offline
+       ========================================================================== */
+    function playBeep(type) {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'nfc') {
+          // Doble tono agudo de lectura NFC
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(1320, audioCtx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.18);
+        } else if (type === 'lock') {
+          // Tono grave industrial de advertencia LOTO
+          osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(220, audioCtx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.38);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.38);
+        } else if (type === 'unlock') {
+          // Tono armónico ascendente de liberación
+          osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.2);
+          gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.32);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.32);
+        }
+      } catch (e) {
+        // Ignorar si el navegador bloquea audio antes de interacción
+      }
+
+      // Vibración de teléfono si el hardware lo soporta
+      if (navigator.vibrate) {
+        if (type === 'nfc') navigator.vibrate([40, 60, 40]);
+        if (type === 'lock') navigator.vibrate([150, 80, 150]);
+        if (type === 'unlock') navigator.vibrate(80);
+      }
+    }
+
+    /* ==========================================================================
+       GESTIÓN DE TEMAS (Modo Claro / Oscuro)
+       ========================================================================== */
+    function initTheme() {
+      const saved = localStorage.getItem('silbom_theme') || 'dark';
+      AppState.theme = saved;
+      applyTheme(saved);
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const icon = document.getElementById('theme-icon');
+      const text = document.getElementById('theme-text');
+      if (theme === 'light') {
+        icon.textContent = '🌙';
+        text.textContent = 'Modo Oscuro';
+      } else {
+        icon.textContent = '☀️';
+        text.textContent = 'Modo Claro';
+      }
+      localStorage.setItem('silbom_theme', theme);
+    }
+
+    function toggleTheme() {
+      const next = AppState.theme === 'dark' ? 'light' : 'dark';
+      AppState.theme = next;
+      applyTheme(next);
+      showToast(`Cambiado a ${next === 'dark' ? 'Modo Oscuro' : 'Modo Claro'}`, '🎨');
+    }
+
+    /* ==========================================================================
+       MODOS DE VISUALIZACIÓN (Pantalla Dividida vs Móvil vs Consola)
+       ========================================================================== */
+    function switchDisplayMode(mode) {
+      AppState.displayMode = mode;
+      const splitBtn = document.getElementById('btn-view-split');
+      const techBtn = document.getElementById('btn-view-tech');
+      const supBtn = document.getElementById('btn-view-supervisor');
+      const container = document.getElementById('main-layout-container');
+      const techView = document.getElementById('view-tech-container');
+      const supView = document.getElementById('view-supervisor-container');
+
+      [splitBtn, techBtn, supBtn].forEach(b => b.classList.remove('active'));
+
+      if (mode === 'split') {
+        splitBtn.classList.add('active');
+        container.className = 'main-container mode-split';
+        techView.classList.remove('hidden');
+        supView.classList.remove('hidden');
+      } else if (mode === 'tech') {
+        techBtn.classList.add('active');
+        container.className = 'main-container';
+        techView.classList.remove('hidden');
+        supView.classList.add('hidden');
+      } else if (mode === 'supervisor') {
+        supBtn.classList.add('active');
+        container.className = 'main-container';
+        supView.classList.remove('hidden');
+        techView.classList.add('hidden');
+      }
+
+      renderSupervisorDashboard();
+    }
+
+    /* ==========================================================================
+       FLUJO MÓVIL DEL TÉCNICO (3 Pantallas Encadenadas)
+       ========================================================================== */
+    function simulateNfcTap(machineId) {
+      playBeep('nfc');
+      showToast(`¡Tag NFC detectado! Activo: ${machineId}`, '📡');
+      loadMachineIntoForm(machineId);
+    }
+
+    function simulateManualSelect(machineId) {
+      if (!machineId) return;
+      playBeep('nfc');
+      showToast(`Equipo seleccionado: ${machineId}`, '🔍');
+      loadMachineIntoForm(machineId);
+    }
+
+    function loadMachineIntoForm(machineId) {
+      AppState.selectedMachineId = machineId;
+      const m = AppState.machines.find(x => x.id === machineId);
+      if (!m) return;
+
+      // Si la máquina ya está en bloqueo activo por este usuario, mostrar paso 3
+      if (m.isLocked && AppState.activeLock && AppState.activeLock.machineId === machineId) {
+        showTechStep(3);
+        updateLockedDisplay(m);
+        focusMachineMTBF(machineId);
+        return;
+      }
+
+      document.getElementById('form-machine-code').textContent = m.id;
+      document.getElementById('form-machine-name').textContent = m.name;
+      document.getElementById('target-card-icon').textContent = m.icon;
+      document.getElementById('check-padlock').checked = false;
+      document.getElementById('btn-submit-lock').disabled = true;
+
+      // Cargar motivos específicos para el tipo actual
+      populateReasons(AppState.selectedType);
+
+      // Ir a Paso 2
+      showTechStep(2);
+      focusMachineMTBF(machineId);
+    }
+
+    function selectInterventionType(type) {
+      AppState.selectedType = type;
+      const cardCorr = document.getElementById('card-type-corrective');
+      const cardPrev = document.getElementById('card-type-preventive');
+
+      if (type === 'correctiva') {
+        cardCorr.classList.add('selected');
+        cardPrev.classList.remove('selected');
+      } else {
+        cardPrev.classList.add('selected');
+        cardCorr.classList.remove('selected');
+      }
+
+      populateReasons(type);
+    }
+
+    function populateReasons(type) {
+      const select = document.getElementById('field-reason');
+      select.innerHTML = '';
+
+      const correctiveReasons = [
+        'Atascamiento de cabezal móvil (Mecánico)',
+        'Sobrecalentamiento en motor principal (Eléctrico)',
+        'Fuga de presión en electroválvulas (Neumático)',
+        'Falla de sensor inductivo de posición (Control)',
+        'Desalineación y vibración anómala en cinta'
+      ];
+
+      const preventiveReasons = [
+        'Inspección y lubricación semanal programada',
+        'Cambio de rodamientos y sellos de desgaste',
+        'Ajuste y calibración de torque en mordazas',
+        'Limpieza técnica profunda y despeje de tolva',
+        'Revisión semestral de conexiones de potencia'
+      ];
+
+      const list = type === 'correctiva' ? correctiveReasons : preventiveReasons;
+      list.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = r;
+        select.appendChild(opt);
+      });
+    }
+
+    function toggleSubmitButton() {
+      const check = document.getElementById('check-padlock').checked;
+      document.getElementById('btn-submit-lock').disabled = !check;
+    }
+
+    function cancelToStep1() {
+      showTechStep(1);
+      document.getElementById('manual-machine-select').value = '';
+    }
+
+    function executeDigitalLock() {
+      const machine = AppState.machines.find(x => x.id === AppState.selectedMachineId);
+      if (!machine) return;
+
+      const reason = document.getElementById('field-reason').value;
+      const now = new Date();
+      const timeStr = `Hoy, ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} hrs`;
+
+      // Marcar máquina como bloqueada
+      machine.isLocked = true;
+      AppState.activeLock = {
+        machineId: machine.id,
+        machineName: machine.name,
+        type: AppState.selectedType === 'correctiva' ? 'Falla Correctiva' : 'Mantención Preventiva',
+        reason: reason,
+        startTime: now,
+        timeStr: timeStr,
+        technician: 'Benjamín V. (Turno A)'
+      };
+
+      // Si es falla correctiva, incrementa fallas para el cálculo de MTBF
+      if (AppState.selectedType === 'correctiva') {
+        machine.correctiveFailures += 1;
+        // Recalcular MTBF instantáneamente (Fórmula oficial: Horas Operativas / N° Fallas)
+        machine.mtbf = parseFloat((machine.operatingHours / machine.correctiveFailures).toFixed(1));
+      }
+
+      // Registrar en auditoría
+      AppState.auditLogs.unshift({
+        time: 'En curso (Ahora)',
+        machineId: machine.id,
+        type: AppState.activeLock.type,
+        technician: AppState.activeLock.technician,
+        status: '🔴 Bloqueo Activo'
+      });
+
+      playBeep('lock');
+      showToast(`¡BLOQUEO LOTO REGISTRADO! Activo: ${machine.id}`, '🔒');
+
+      // Ir a Paso 3
+      showTechStep(3);
+      updateLockedDisplay(machine);
+      startLockTimer();
+      renderSupervisorDashboard();
+      focusMachineMTBF(machine.id);
+    }
+
+    function updateLockedDisplay(machine) {
+      document.getElementById('locked-banner-machine').textContent = `${machine.id} · ${machine.name}`;
+      if (AppState.activeLock) {
+        document.getElementById('locked-detail-type').textContent = AppState.activeLock.type;
+        document.getElementById('locked-detail-reason').textContent = AppState.activeLock.reason;
+        document.getElementById('locked-detail-time').textContent = AppState.activeLock.timeStr;
+      }
+    }
+
+    function startLockTimer() {
+      clearInterval(AppState.timerInterval);
+      AppState.timerSeconds = 0;
+      updateTimerText();
+
+      AppState.timerInterval = setInterval(() => {
+        AppState.timerSeconds++;
+        updateTimerText();
+      }, 1000);
+    }
+
+    function updateTimerText() {
+      const h = Math.floor(AppState.timerSeconds / 3600).toString().padStart(2, '0');
+      const m = Math.floor((AppState.timerSeconds % 3600) / 60).toString().padStart(2, '0');
+      const s = (AppState.timerSeconds % 60).toString().padStart(2, '0');
+      const el = document.getElementById('active-lock-timer');
+      if (el) el.textContent = `${h}:${m}:${s}`;
+    }
+
+    function executeDigitalUnlock() {
+      const machine = AppState.machines.find(x => x.id === AppState.selectedMachineId);
+      if (machine) {
+        machine.isLocked = false;
+      }
+
+      clearInterval(AppState.timerInterval);
+
+      // Actualizar el estado en la bitácora de auditoría
+      if (AppState.auditLogs.length > 0 && AppState.auditLogs[0].status.includes('Bloqueo Activo')) {
+        const secs = AppState.timerSeconds;
+        const durationText = secs < 60 ? `${secs} seg` : `${Math.round(secs / 60)} min`;
+        AppState.auditLogs[0].status = `Cerrado (${durationText})`;
+        AppState.auditLogs[0].time = `Hoy, ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+      }
+
+      AppState.activeLock = null;
+      playBeep('unlock');
+      showToast(`Equipo liberado con éxito. Operación normal restablecida.`, '🟢');
+
+      // Volver a Paso 1
+      showTechStep(1);
+      document.getElementById('manual-machine-select').value = '';
+      renderSupervisorDashboard();
+      if (machine) focusMachineMTBF(machine.id);
+    }
+
+    function showTechStep(step) {
+      AppState.currentStep = step;
+      document.getElementById('tech-step-1').classList.toggle('hidden', step !== 1);
+      document.getElementById('tech-step-2').classList.toggle('hidden', step !== 2);
+      document.getElementById('tech-step-3').classList.toggle('hidden', step !== 3);
+
+      // Sincronizar indicador de 3 pantallas encadenadas (Criterio A2)
+      const s1 = document.getElementById('stepper-item-1');
+      const s2 = document.getElementById('stepper-item-2');
+      const s3 = document.getElementById('stepper-item-3');
+      const l1 = document.getElementById('stepper-line-1');
+      const l2 = document.getElementById('stepper-line-2');
+
+      if (s1 && s2 && s3 && l1 && l2) {
+        [s1, s2, s3].forEach(s => s.className = 'step-indicator');
+        [l1, l2].forEach(l => l.className = 'step-connector-line');
+
+        if (step === 1) {
+          s1.classList.add('active');
+        } else if (step === 2) {
+          s1.classList.add('completed');
+          l1.classList.add('active');
+          s2.classList.add('active');
+        } else if (step === 3) {
+          s1.classList.add('completed');
+          l1.classList.add('active');
+          s2.classList.add('completed');
+          l2.classList.add('active');
+          s3.classList.add('locked-active');
+        }
+      }
+    }
+
+    /* ==========================================================================
+       CONSOLA DE SUPERVISIÓN WEB (JEFATURA DE PLANTA)
+       ========================================================================== */
+    function renderSupervisorDashboard() {
+      const grid = document.getElementById('machines-plant-grid');
+      if (!grid) return;
+
+      grid.innerHTML = '';
+      let lockedCount = 0;
+      let totalMtbf = 0;
+
+      AppState.machines.forEach(m => {
+        if (m.isLocked) lockedCount++;
+        totalMtbf += m.mtbf;
+
+        const isSelected = m.id === AppState.selectedMachineId;
+        const card = document.createElement('div');
+        card.className = `machine-status-card ${m.isLocked ? 'is-locked' : ''} ${isSelected ? 'selected-asset' : ''}`;
+        card.onclick = () => {
+          AppState.selectedMachineId = m.id;
+          focusMachineMTBF(m.id);
+          renderSupervisorDashboard();
+        };
+
+        card.innerHTML = `
+          <div class="machine-card-header">
+            <span class="machine-code-badge">${m.id}</span>
+            <span class="machine-state-pill ${m.isLocked ? 'pill-locked' : 'pill-operational'}">
+              ${m.isLocked ? '🔴 BLOQUEO LOTO' : '🟢 OPERATIVO'}
+            </span>
+          </div>
+          <div class="machine-card-name">${m.icon} ${m.name}</div>
+          <div class="machine-card-area">${m.area}</div>
+          <div class="machine-card-footer">
+            <span>MTBF Operativo:</span>
+            <span class="bold">${m.mtbf} hrs</span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      // Actualizar KPIs superiores
+      const kpiActive = document.getElementById('kpi-active-count');
+      const kpiPlantTag = document.getElementById('kpi-plant-tag');
+      const kpiTechCount = document.getElementById('kpi-tech-count');
+      const kpiTechTag = document.getElementById('kpi-tech-tag');
+      const kpiPlantMtbf = document.getElementById('kpi-plant-mtbf');
+
+      if (lockedCount > 0) {
+        kpiActive.innerHTML = `${lockedCount} <span class="unit">Bloqueo(s) LOTO</span>`;
+        kpiActive.style.color = 'var(--rojo-peligro)';
+        kpiPlantTag.className = 'kpi-status-tag tag-red';
+        kpiPlantTag.textContent = 'Alerta: Equipos desenergizados';
+
+        /* Uso estrictamente funcional del Ámbar Industrial (#F5A623): Advertencia de personal en terreno */
+        kpiTechCount.innerHTML = `${lockedCount} <span class="unit">técnico(s)</span>`;
+        kpiTechTag.className = 'kpi-status-tag tag-amber';
+        kpiTechTag.textContent = 'Personal interviniendo maquinaria';
+      } else {
+        kpiActive.innerHTML = `0 <span class="unit">Bloqueos LOTO</span>`;
+        kpiActive.style.color = 'var(--verde-seguridad)';
+        kpiPlantTag.className = 'kpi-status-tag tag-green';
+        kpiPlantTag.textContent = 'Todos los equipos operativos';
+
+        kpiTechCount.innerHTML = `0 <span class="unit">activos</span>`;
+        kpiTechTag.className = 'kpi-status-tag tag-green';
+        kpiTechTag.textContent = 'Sin riesgo de atrapamiento';
+      }
+
+      if (kpiPlantMtbf) {
+        const avgMtbf = (totalMtbf / AppState.machines.length).toFixed(1);
+        kpiPlantMtbf.innerHTML = `${avgMtbf} <span class="unit">hrs</span>`;
+      }
+
+      // Actualizar tabla de auditoría
+      renderAuditLogs();
+    }
+
+    function renderAuditLogs() {
+      const tbody = document.getElementById('audit-log-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      AppState.auditLogs.slice(0, 5).forEach(log => {
+        const tr = document.createElement('tr');
+        const isCurrentActive = log.status.includes('Bloqueo Activo');
+        tr.innerHTML = `
+          <td style="font-weight: 600;">${log.time}</td>
+          <td><code>${log.machineId}</code></td>
+          <td>${log.type}</td>
+          <td>${log.technician}</td>
+          <td style="color: ${isCurrentActive ? 'var(--rojo-peligro)' : 'var(--verde-seguridad)'}; font-weight: 800;">
+            ${log.status}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function focusMachineMTBF(machineId) {
+      const m = AppState.machines.find(x => x.id === machineId);
+      if (!m) return;
+
+      document.getElementById('mtbf-machine-name').textContent = `${m.id} · ${m.name}`;
+      document.getElementById('mtbf-stat-failures').textContent = `${m.correctiveFailures} eventos`;
+      document.getElementById('mtbf-stat-downtime').textContent = `${(720 - m.operatingHours).toFixed(1)} hrs`;
+      document.getElementById('mtbf-stat-result').textContent = `${m.mtbf} hrs`;
+    }
+
+    /* ==========================================================================
+       UTILIDADES DE UI & REINICIO
+       ========================================================================== */
+    function showToast(msg, icon = '🔔') {
+      const toast = document.getElementById('app-toast');
+      document.getElementById('toast-message').textContent = msg;
+      document.getElementById('toast-icon').textContent = icon;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    function updateLiveClock() {
+      const clock = document.getElementById('mobile-live-clock');
+      if (clock) {
+        const d = new Date();
+        clock.textContent = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+      }
+    }
+
+    function resetPrototypeDemo() {
+      clearInterval(AppState.timerInterval);
+      
+      // Restaurar estado inicial de máquinas
+      AppState.machines[0].correctiveFailures = 3;
+      AppState.machines[0].mtbf = 233.8;
+      AppState.machines.forEach(m => m.isLocked = false);
+
+      AppState.activeLock = null;
+      AppState.selectedMachineId = 'EQ-ENV-01';
+      AppState.selectedType = 'correctiva';
+      AppState.currentStep = 1;
+      
+      showTechStep(1);
+      renderSupervisorDashboard();
+      focusMachineMTBF('EQ-ENV-01');
+      showToast('Demostración reiniciada a valores iniciales', '🔄');
+    }
+
+    // Inicialización al cargar la página
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      updateLiveClock();
+      setInterval(updateLiveClock, 30000);
+      populateReasons('correctiva');
+      renderSupervisorDashboard();
+      focusMachineMTBF('EQ-ENV-01');
+    });
+  </script>
+</body>
+</html>
