@@ -15,5 +15,3 @@ Para los jefes de mantenimiento industrial en Chile que sufren pérdidas de tiem
 * **Prototipo Navegable:** [https://silbom.netlify.app](https://silbom.netlify.app)
 * [Presentación Hito 1](docs/SILBOM_Presentacion_Hito1%20(1).pdf)
 * [Propuesta Hito 1](docs/SILBOM_Propuesta_Hito1%20(5).pdf)
-[SILBOM_Presentacion_Hito1 (1).pdf](https://github.com/user-attachments/files/33674961/SILBOM_Presentacion_Hito1.1.pdf)
-
