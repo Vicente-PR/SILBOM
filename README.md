@@ -12,6 +12,6 @@ Para los jefes de mantenimiento industrial en Chile que sufren pérdidas de tiem
 ## Entregables Hito 1
 
 
-* **Prototipo Navegable:**()
+* **Prototipo Navegable:**(Silbom1.html](docs/Silbom1.html)
 * [Presentación Hito 1](docs/SILBOM_Presentacion_Hito1%20(1).pdf)
 * [Propuesta Hito 1](docs/SILBOM_Propuesta_Hito1%20(5).pdf)
