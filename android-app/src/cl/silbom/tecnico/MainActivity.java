@@ -20,7 +20,6 @@ import android.webkit.WebViewClient;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
@@ -75,7 +74,7 @@ public final class MainActivity extends Activity {
                             if (record.getTnf() == NdefRecord.TNF_WELL_KNOWN
                                     && Arrays.equals(record.getType(), NdefRecord.RTD_TEXT)) {
                                 textCount++;
-                                result = decodeText(record.getPayload());
+                                result = NfcTextDecoder.decodeText(record.getPayload());
                             }
                         }
                         if (textCount != 1) {
@@ -106,18 +105,6 @@ public final class MainActivity extends Activity {
             });
         }
     };
-
-    /** Decodificación NDEF RTD_TEXT: status, idioma y texto UTF-8/UTF-16. */
-    static String decodeText(byte[] payload) {
-        if (payload == null || payload.length < 2) return null;
-        int status = payload[0] & 0xFF;
-        int languageLength = status & 0x3F;
-        int textOffset = 1 + languageLength;
-        if (textOffset >= payload.length) return null;
-        boolean utf16 = (status & 0x80) != 0;
-        return new String(payload, textOffset, payload.length - textOffset,
-                utf16 ? StandardCharsets.UTF_16 : StandardCharsets.UTF_8).trim();
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
