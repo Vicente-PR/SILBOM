@@ -30,7 +30,9 @@ jobs:
       - name: Install API and Build Tools
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDK_MANAGER"
+          "$SDK_MANAGER" --sdk_root="$ANDROID_HOME" "platforms;android-34" "build-tools;34.0.0"
       - name: Run NFC decoder and machine code tests
         run: bash tests/android-nfc/run-tests.sh
       - name: Assemble and verify Debug APK
