@@ -21,7 +21,7 @@ RES_ZIP="$BUILD_DIR/res.zip"
 UNALIGNED_APK="$BUILD_DIR/silbom-tecnico-unaligned.apk"
 ALIGNED_APK="$BUILD_DIR/silbom-tecnico-aligned.apk"
 FINAL_APK="$BUILD_DIR/silbom-tecnico.apk"
-KEYSTORE="$BUILD_DIR/debug.keystore"
+KEYSTORE="${SILBOM_DEBUG_KEYSTORE:-$HOME/.android/silbom-debug.keystore}"
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$GEN_DIR" "$OBJ_DIR" "$DEX_DIR"
@@ -59,15 +59,20 @@ echo "[5/6] Empaquetando classes.dex y alineando APK..."
 "$BUILD_TOOLS/zipalign" -f -p 4 "$UNALIGNED_APK" "$ALIGNED_APK"
 
 echo "[6/6] Generando firma debug y verificando APK..."
-keytool -genkeypair -noprompt \
-  -keystore "$KEYSTORE" \
-  -storepass android \
-  -alias androiddebugkey \
-  -keypass android \
-  -keyalg RSA \
-  -keysize 2048 \
-  -validity 10000 \
-  -dname "CN=SILBOM Tecnico,O=Universidad Mayor,C=CL" >/dev/null 2>&1
+if [[ ! -f "$KEYSTORE" ]]; then
+  mkdir -p "$(dirname "$KEYSTORE")"
+  umask 077
+  keytool -genkeypair -noprompt \
+    -keystore "$KEYSTORE" \
+    -storepass android \
+    -alias androiddebugkey \
+    -keypass android \
+    -keyalg RSA \
+    -keysize 2048 \
+    -validity 10000 \
+    -dname "CN=SILBOM Tecnico,O=Universidad Mayor,C=CL" >/dev/null 2>&1
+  echo "Nuevo certificado DEBUG creado en $KEYSTORE (fuera del repositorio)."
+fi
 
 "$BUILD_TOOLS/apksigner" sign \
   --ks "$KEYSTORE" \
@@ -79,10 +84,6 @@ keytool -genkeypair -noprompt \
 
 "$BUILD_TOOLS/apksigner" verify --verbose "$FINAL_APK"
 
-cp "$FINAL_APK" "$REPO_ROOT/docs/silbom-tecnico.apk"
-cp "$FINAL_APK" "$REPO_ROOT/src/main/resources/static/silbom-tecnico.apk"
-
-echo "APK generado correctamente en:"
+echo "APK Debug generado (NO se copia a GitHub ni a recursos web):"
 echo "  - $FINAL_APK"
-echo "  - $REPO_ROOT/docs/silbom-tecnico.apk"
-echo "  - $REPO_ROOT/src/main/resources/static/silbom-tecnico.apk"
+echo "Para instalar sobre una versión anterior, conserva $KEYSTORE."
