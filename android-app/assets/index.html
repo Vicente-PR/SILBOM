@@ -1565,6 +1565,7 @@
   </div>
 
   <script src="./api-client.js"></script>
+  <script src="./nfc-code.js"></script>
   <script>
     /* ==========================================================================
        CONFIGURACIÓN DE SERVIDOR Y ESTADO EN MEMORIA (ZERO CREDENCIALES EN STORAGE)
@@ -2323,16 +2324,16 @@
         nativeNfcScanning = false;
         nativeNfcProcessing = true;
         updateNativeNfcUi('Código leído. Verificando máquina con el servidor...');
-        const code = typeof rawCode === 'string' ? rawCode.trim() : '';
+        const code = window.SilbomNfcCode.normalizeCode(rawCode);
         try {
-          if (!/^EQ-[A-Z]{2,4}-[0-9]{2}$/.test(code)) {
+          if (!window.SilbomNfcCode.isValidCode(code)) {
             throw new Error('El código de la etiqueta es inválido.');
           }
           if (AppState.pendingOperation || AppState.isSubmitting) {
             throw new Error('Primero confirma la operación LOTO pendiente.');
           }
           // Lectura individual: sin verificación del backend no se abre ninguna ficha.
-          const result = await apiFetch('/maquinas/' + encodeURIComponent(code));
+          const result = await apiFetch(window.SilbomNfcCode.machineEndpoint(code));
           if (result.status === 404) throw new Error('Máquina no registrada en SILBOM.');
           if (result.status === 401 || result.status === 403) throw new Error('No autorizado para consultar esta máquina.');
           if (!result.ok || !result.data || result.data.id !== code) {
