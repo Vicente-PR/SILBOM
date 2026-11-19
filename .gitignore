@@ -59,5 +59,8 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Android app build directory
+# Android app y artefactos de construccion
+build/
 android-app/build/
+*.apk
+*.aab

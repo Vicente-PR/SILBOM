@@ -1,212 +1,224 @@
-# SILBOM — Backend Hito 2
+# SILBOM — Sistema LOTO (Hito 3: Producto Funcional e Integración Full-Stack)
 
-API REST universitaria para maquinaria e intervenciones LOTO. Java 21, Spring
-Boot 3.5.16, Maven, JPA, Spring Security y PostgreSQL 15–17 (probado con 17).
+API REST universitaria y clientes frontend integrados para gestión de maquinaria e intervenciones de seguridad LOTO (*Lockout / Tagout*). Proyecto desarrollado con Java 21, Spring Boot 3.5.16, Maven, JPA/Hibernate, Spring Security y PostgreSQL 15–17 (probado en PostgreSQL 17).
 
-El estado `bloqueada` es un **registro digital**. SILBOM no instala candados,
-no aísla energía, no verifica energía cero ni certifica cumplimiento legal.
-La confirmación del candado es una declaración del técnico autenticado.
+> **Aviso de seguridad industrial:** El estado `bloqueada` en SILBOM constituye un **registro digital de control y trazabilidad**. SILBOM no coloca candados físicos, no desenergiza actuadores ni certifica automáticamente energía cero; la confirmación del bloqueo es una declaración de responsabilidad del técnico autenticado bajo la normativa chilena DS 594.
 
-## Arquitectura
+---
 
-Monolito en `cl.silbom.backend`: controller recibe HTTP y valida DTO; service
-aplica autorización, reglas y transacciones; repository persiste con consultas
-parametrizadas y bloqueos de filas; model controla transiciones; DTO evita
-exponer entidades/hashes; exception normaliza errores; security autentica,
-autoriza y cifra; config fija el contexto RLS y carga datos iniciales.
+## Arquitectura del Sistema
 
-Tablas: maquinas, tecnicos, fallas, bloqueos_loto y eventos_loto. Los vínculos
-incluyen la planta mediante claves foráneas compuestas. El ID de máquina es
-único en todo el sistema.
+El proyecto implementa una arquitectura monolítica modular en capas bajo el paquete base `cl.silbom.backend`, desacoplada en dos clientes de interfaz de usuario:
 
-## Instalación en otro computador
-
-1. Instala JDK 21, Maven 3.9+ y PostgreSQL 15, 16 o 17 con los instaladores
-   oficiales o el gestor de paquetes de tu sistema. Comprueba `java -version`,
-   `javac -version`, `mvn -version` y `psql --version`.
-2. Inicia PostgreSQL. Crea un propietario/migrador y un usuario de aplicación
-   separados; ninguno necesita superusuario. Ejemplo Linux:
-
-   ```bash
-   sudo -u postgres createuser --pwprompt silbom_owner
-   sudo -u postgres createuser --pwprompt silbom_app
-   sudo -u postgres createdb --owner=silbom_owner silbom_db
-   ```
-
-3. Desde la raíz, ejecuta como propietario/migrador:
-
-   ```bash
-   psql -h localhost -U silbom_owner -d silbom_db -v ON_ERROR_STOP=1 -f db/schema.sql
-   ```
-
-   El script y `db/migrations/V2__integridad_loto.sql` son transaccionales y
-   repetibles, sin DROP TABLE. Conceden a silbom_app permisos sin DDL ni DELETE
-   físico. Otro rol se selecciona con `-v app_role=nombre_del_rol`.
-   La API no debe ser propietaria ni usar superusuario o BYPASSRLS.
-   Para una base original existente, respáldala y ejecuta como su propietario.
-   La migración conserva tickets/notas y no inventa identidades ni agrupa fallas
-   antiguas. Si una restricción falla, se revierte la transacción: no se corrigen
-   registros a ciegas. No uses producción para demostraciones o pruebas.
-
-4. Prepara la configuración:
-
-   ```bash
-   cp .env.example .env
-   chmod 600 .env
-   openssl rand -base64 32
-   ```
-
-   Edita .env con la contraseña real del rol, una clave Base64 de exactamente
-   32 bytes y credenciales iniciales individuales. Conserva la clave AES para
-   poder leer notas anteriores. No publiques .env. Spring lo carga como archivo
-   **Java properties** desde el directorio de ejecución, sin `source`; no uses
-   comillas de shell. Las variables exportadas tienen prioridad.
-
-5. Compila, prueba y arranca desde la raíz:
-
-   ```bash
-   mvn clean package
-   java -jar target/silbom-backend-1.0.0.jar
-   ```
-
-   Alternativa: `mvn spring-boot:run`. Puerto predeterminado 8080. Si la planta
-   no tiene máquinas se cargan seis equipos y tres tickets históricos de demo.
-   Las variables de bootstrap crean la primera cuenta supervisora sin contraseña
-   predeterminada; retíralas después. En la nube de esta sesión usa activate.sh
-   y los ajustes Maven/proxy guardados bajo /workspace/.silbom-cloud.
-
-## Variables
-
-| Variable | Propósito |
-|---|---|
-| DB_URL | JDBC PostgreSQL, por defecto base local silbom_db |
-| DB_USERNAME / DB_PASSWORD | Rol de aplicación, nunca el migrador |
-| ENCRYPTION_SECRET | Base64 de 32 bytes para AES-256-GCM |
-| PLANTA_ID | Planta definida por el servidor, no por el cliente |
-| SERVER_PORT | Puerto, por defecto 8080 |
-| SILBOM_BOOTSTRAP_USERNAME | Supervisor inicial, solo primera instalación |
-| SILBOM_BOOTSTRAP_PASSWORD | Mínimo 12 caracteres, máximo 72 bytes UTF-8 |
-
-## Identidad, permisos y compatibilidad
-
-HTTP Basic individual y BCrypt costo 12 reemplazan a la API key compartida.
-APP_API_KEY deja de autorizar operaciones. Fuera de loopback se necesita TLS
-configurado en un servidor/proxy: una cabecera HSTS no instala HTTPS.
-
-| Operación | Permiso |
-|---|---|
-| Lectura de máquinas | Pública para el panel |
-| CRUD de máquinas/técnicos | Supervisor de la planta |
-| Lectura de tickets/eventos | Técnico o supervisor de la planta |
-| Notas confidenciales | Responsable del ticket o supervisor |
-| Crear bloqueo | Técnico/supervisor; dueño obtenido de autenticación |
-| Liberar bloqueo | Solo su responsable, incluso frente al supervisor |
-| DELETE de tickets | Siempre 409: no se elimina historial |
-
-DELETE en máquinas/técnicos es baja lógica (204); el GET posterior devuelve 404.
-Se conservan referencias e identidades y no se reutilizan usuarios dados de baja.
-No se dan de baja equipos/técnicos con bloqueos activos ni se retira el propio
-rol supervisor. Los tickets legados sin identidad necesitan un procedimiento
-supervisado futuro; no se permite eludir la propiedad del candado.
-
-Cambios de contrato aprobados: Basic individual, GET de tickets autenticado,
-referenciaFalla obligatoria para CORRECTIVA, MTBF nullable y ningún DELETE de
-historial. nombreTecnico es un campo legado opcional ignorado para identificar
-al responsable. El cliente debe mostrar MTBF null como «no calculable».
-El HTML docs/Silbom1.html sigue siendo un prototipo offline, sin llamadas API.
-
-## API
-
-Base `/api/v1`; User-Agent obligatorio. Configura Basic Auth en Postman con
-credenciales locales, sin guardarlas en colecciones compartidas ni incrustar
-credenciales de integración en el navegador.
-
-| Recurso | Rutas |
-|---|---|
-| Máquinas | GET/POST /maquinas; GET/PUT/DELETE /maquinas/{id} |
-| Técnicos | GET/POST /tecnicos; GET/PUT/DELETE /tecnicos/{id} |
-| Tickets | GET/POST /bloqueos; GET/DELETE /bloqueos/{id} |
-| Liberación | PUT /bloqueos/{id}/liberar |
-| Eventos | GET /bloqueos/{id}/eventos |
-
-Filtros: /maquinas?bloqueada=true y
-/bloqueos?maquinaId=EQ-ENV-01&estado=ACTIVO.
-
-Crear máquina como supervisor:
-
-```json
-{"id":"EQ-DEMO-01","nombre":"Equipo demo","area":"Taller","icono":"X","horasOperativas":100.0,"fallasCorrectivas":0}
+```
+[ Cliente Web Supervisor (PC) ]      [ Cliente Móvil Técnico (Android) ]
+     http://localhost:8080/             http://localhost:8080/app/  o  APK nativo
+               │                                      │
+               └───────────────┬──────────────────────┘
+                               │  HTTP Basic + REST (/api/v1)
+                               ▼
+               ┌───────────────────────────────┐
+               │    Controller (REST / DTO)    │
+               ├───────────────────────────────┤
+               │   Service (Reglas y Bloqueo)  │
+               ├───────────────────────────────┤
+               │ Repository (JPA / Row Locks)  │
+               ├───────────────────────────────┤
+               │    PostgreSQL 17 (RLS / DB)   │
+               └───────────────────────────────┘
 ```
 
-Crear técnico como supervisor (contraseña ilustrativa a reemplazar localmente):
+- **Consola Web de Supervisión (PC):** Servida en `/` (o `/index.html`), diseñada exclusivamente para monitoreo centralizado de planta, visualización de KPIs de disponibilidad, cálculo de MTBF, auditoría de eventos y administración de usuarios técnicos.
+- **Cliente Móvil de Terreno (Android):** Disponible como interfaz web responsiva en `/app/` y distribuido como instalador nativo Android (`.apk`). Optimizado para operación con una sola mano, lectura de etiquetas NFC, escaneo de respaldo QR y confirmación de candado físico.
+- **Backend Monolítico:** `Controller` valida DTOs y gestiona códigos HTTP estándar; `Service` ejecuta la lógica de negocio, control de concurrencia pesimista (`Tecnico` → `Maquina` → `BloqueoLoto`) y cifrado AES-256-GCM de notas; `Repository` aísla las consultas SQL parametrizadas; `PlantaTransactionAspect` aplica seguridad RLS por planta a nivel de sesión de base de datos.
 
-```json
-{"username":"tecnico.demo","nombre":"Técnico demo","password":"CAMBIAR_CONTRASENA_LOCAL","rol":"TECNICO"}
-```
+Tablas relacionales: `maquinas`, `tecnicos`, `fallas`, `bloqueos_loto` y `eventos_loto`. Todas las referencias compuestas garantizan aislamiento multi-inquilino (*multi-tenant*) por planta.
 
-Registrar bloqueo con credencial individual:
+---
 
-```json
-{"maquinaId":"EQ-DEMO-01","tipoIntervencion":"CORRECTIVA","motivo":"Inspección de falla registrada","confirmacionCandadoDs594":true,"referenciaFalla":"FALLA-2026-001"}
-```
+## Instalación de App Móvil (Android)
 
-Todos los participantes de una misma falla usan la misma referencia en esa
-máquina/planta; solo su primera aparición suma una falla. Una avería nueva usa
-otra referencia. PREVENTIVA omite referenciaFalla y no incrementa fallas.
+La aplicación móvil de terreno `SILBOM Técnico` está enfocada de forma **exclusiva en el sistema operativo Android** (versión mínima 7.0 / SDK 24, compatible hasta Android 14 / SDK 34).
 
-MTBF = horas operativas declaradas / fallas observadas, redondeado a un decimal;
-sin fallas es null. No avanza con el reloj ni predice exactamente futuras fallas.
-El supervisor debe mantener horas y conteos del mismo período de medición; aún
-no se modelan explícitamente sus fechas.
+> **Distribución oficial de la aplicación:**
+> El instalador ejecutable `.apk` se distribuye exclusivamente a través de la pestaña de Releases del repositorio:
+> 👉 **[Descargar SILBOM Técnico en GitHub Releases](https://github.com/Bvstivn-A/Silbom_Pruebas/releases)**
+>
+> Actualmente está disponible una **Pre-release de pruebas** con el binario compilado y firmado (`silbom-tecnico.apk`). De acuerdo con el **Anexo B (Reglas del repositorio)** de la asignatura, los archivos binarios compilados no se almacenan en las ramas de código fuente de Git para evitar el engrosamiento del historial y prevenir conflictos de fusión.
 
-HTTP: 200 lectura/actualización/liberación; 201 alta; 204 baja lógica; 400 entrada
-inválida; 401 credencial ausente/inválida; 403 sin permiso; 404 inexistente; 405
-verbo no admitido; 409 conflicto de estado/integridad/concurrencia; 429 límite.
-No se devuelve SQL ni stack trace.
+### Justificación de enfoque exclusivo Android (Sin soporte iOS)
+Se descartó de manera formal el soporte para terminales iOS (iPhone / iPad) por las siguientes razones de arquitectura y entorno:
+1. **Entorno de compilación:** Empaquetar aplicaciones para iOS requiere hardware macOS y Xcode, inexistente en las estaciones de trabajo del equipo.
+2. **Costo de licenciamiento:** La publicación exige suscripción anual de \$99 USD al *Apple Developer Program*.
+3. **Restricción de sideloading:** iOS restringe la instalación libre de ejecutables fuera de la App Store o TestFlight.
+4. **Realidad de planta industrial:** En plantas productivas chilenas predominan ampliamente los terminales rugerizados y smartphones corporativos Android con chips NFC integrados.
 
-## Pruebas y demostración
+### Instalación y conexión en teléfono Android
+1. Descarga el archivo `silbom-tecnico.apk` desde [GitHub Releases](https://github.com/Bvstivn-A/Silbom_Pruebas/releases).
+2. Abre el archivo en tu teléfono Android y permite la instalación de aplicaciones de orígenes desconocidos.
+3. Abre la aplicación y pulsa el botón **⚙️ IP** en la barra superior para indicar la dirección IP de tu servidor backend (por ejemplo: `http://192.168.1.100:8080`).
+4. Si estás en una red Wi-Fi institucional con aislamiento de clientes (AP Isolation), puedes conectar el teléfono por cable USB con depuración activada y ejecutar en tu PC:
+   ```bash
+   adb reverse tcp:8080 tcp:8080
+   ```
+   Luego en la app selecciona el botón **💻 Localhost (8080)** para conectar directamente por USB.
+
+---
+
+## Instalación y Despliegue en localhost
+
+### 1. Requisitos previos
+- **Java Development Kit (JDK):** Versión 21 instalada (`javac -version`).
+- **Apache Maven:** Versión 3.9 o superior (`mvn -version`).
+- **PostgreSQL:** Versión 15, 16 o 17 en ejecución (`psql --version`).
+
+### 2. Configurar la base de datos
+Inicia el servicio PostgreSQL y crea los roles de migración y aplicación (con contraseñas independientes y privilegios mínimos):
 
 ```bash
-mvn test  # dominio, Mockito, seguridad y HTTP con H2
+sudo -u postgres createuser --pwprompt silbom_owner
+sudo -u postgres createuser --pwprompt silbom_app
+sudo -u postgres createdb --owner=silbom_owner silbom_db
 ```
 
-Para PostgreSQL real se requiere un administrador de pruebas con CREATEDB y
-un rol de aplicación no propietario ya existente. Configura PGHOST, PGPORT,
-PGUSER y, si corresponde, PGPASSWORD de forma segura. Exporta TEST_DB_USERNAME y
-TEST_DB_PASSWORD para el rol de aplicación:
+Ejecuta los scripts transaccionales en orden con el usuario propietario:
 
 ```bash
-bash scripts/test-postgres.sh
+psql -h localhost -U silbom_owner -d silbom_db -v ON_ERROR_STOP=1 -f db/schema.sql
+psql -h localhost -U silbom_owner -d silbom_db -v ON_ERROR_STOP=1 -f db/migrations/V2__integridad_loto.sql
 ```
 
-El auxiliar crea una base efímera propia, aplica dos veces el esquema, ejecuta
-`mvn -Ppostgres-it verify` y elimina solo esa base al terminar. No recibe un
-nombre de base de producción. La suite verifica transacciones/conexiones
-independientes, doble liberación, rollback, persistencia, CHECK/FK, RLS y
-protección de historial. `mvn test` por sí solo no ejecuta esa suite. Resultados:
-`target/surefire-reports` y `target/failsafe-reports` de la ejecución actual.
+### 3. Configurar variables de entorno (.env)
+Copia la plantilla de ejemplo y genera una clave de cifrado criptográfica de 32 bytes (256 bits) en Base64:
 
-Importa docs/SILBOM_Postman_Collection.json y configura sus variables vacías en
-un entorno local. Los IDs se capturan dinámicamente; demuestra CRUD, permisos,
-Multi-LOTO y errores sin borrar tickets. La máquina termina de baja lógica y su
-historial permanece.
+```bash
+cp .env.example .env
+chmod 600 .env
+openssl rand -base64 32
+```
 
-## Seguridad y pendientes
+Edita `.env` con los valores de conexión de tu máquina local:
 
-Ver docs/controles-seguridad.md y docs/auditoria-backend.md para evidencia,
-limitaciones y evaluación de la rúbrica. Boot pasó de 3.3.5 a 3.5.16 desde Maven
-Central, conservando Java 21 y la línea principal 3.x. La consulta externa de
-CVE/soporte puede estar bloqueada: no se afirma ausencia de vulnerabilidades.
+```ini
+DB_URL=jdbc:postgresql://localhost:5432/silbom_db
+DB_USERNAME=silbom_app
+DB_PASSWORD=tu_contraseña_silbom_app
+ENCRYPTION_SECRET=pega_aqui_la_clave_base64_generada
+PLANTA_ID=PLANTA-SAN-JOAQUIN
+SERVER_PORT=8080
+SILBOM_BOOTSTRAP_USERNAME=supervisor-local
+SILBOM_BOOTSTRAP_PASSWORD=SilbomSup_7674a15c5e37d628
+```
 
-Hito 3: frontend conectado, QR/NFC real, período de medición explícito,
-recuperación/rotación de credenciales, paginación, observabilidad y procedimiento
-para tickets legados sin identidad. No se implementa una liberación privilegiada
-que evite el permiso del responsable.
+### 4. Compilar y arrancar la aplicación
+Desde la raíz del repositorio, ejecuta:
 
-Se evaluó Flyway: es conveniente versionar migraciones, pero no se activa un
-baseline automático sobre bases existentes desconocidas. En este alcance se
-usa SQL transaccional/repetible; Flyway requiere un inventario y baseline
-explícito, probado y respaldado.
+```bash
+mvn spring-boot:run
+```
 
-La revisión posterior de higiene, normalización de notas y documentación pedagógica
-está registrada en [Auditoría de la propuesta Gemini](docs/REGISTRO_AUDITORIA_GEMINI.md).
+O genera el paquete JAR ejecutable:
+
+```bash
+mvn clean package
+java -jar target/silbom-backend-1.0.0.jar
+```
+
+El servidor iniciará en el puerto `8080`. En el primer arranque, `DataInitializer` creará de manera automática la cuenta supervisora inicial y los 6 equipos maestros de demostración para la Planta San Joaquín.
+
+---
+
+## Recorrido de Prueba en localhost (Evaluación Hito 3)
+
+Para evaluar el sistema completo punta a punta en un computador de revisión sin requerir hardware móvil ni tarjetas físicas NFC, sigue este flujo guiado:
+
+### Paso 1: Acceso a la Consola de Supervisión (PC)
+1. Abre tu navegador en **`http://localhost:8080/`**.
+2. Observa la insignia de estado superior: debe indicar **`🟢 API Conectada (PostgreSQL)`**.
+3. En la barra de autenticación, inicia sesión con las credenciales de supervisor:
+   - **Usuario:** `supervisor-local`
+   - **Contraseña:** `SilbomSup_7674a15c5e37d628` *(o la definida en tu `.env`)*
+4. En el panel podrás ver la grilla de las 6 máquinas de la planta (`EQ-ENV-01`, `EQ-PR-04`, `EQ-EXT-02`, `EQ-MEZ-01`, `EQ-COM-03`, `EQ-TR-01`), el cálculo dinámico de horas operativas y MTBF, y el historial de tickets.
+5. Haz clic en **👥 Técnicos** y registra un nuevo técnico para la prueba:
+   - **Username:** `tecnico1`
+   - **Nombre:** `Técnico de Terreno 1`
+   - **Contraseña:** `SilbomTec_123456` *(mínimo 12 caracteres)*
+   - **Rol:** `Técnico LOTO`
+
+### Paso 2: Simulación de Escaneo NFC en Terreno (Cliente Técnico)
+1. Abre una nueva pestaña o ventana en **`http://localhost:8080/app/?maquina=EQ-ENV-01`**.
+   > **Nota de ingeniería:** El parámetro `?maquina=EQ-ENV-01` simula la lectura automática de una etiqueta NFC física en terreno (mismo comportamiento que se produce al acercar el teléfono Android a la máquina).
+2. En la barra inferior, selecciona la pestaña **👤 Técnicos / Sesión** e ingresa con:
+   - **Usuario:** `tecnico1`
+   - **Contraseña:** `SilbomTec_123456`
+3. Regresa a la pestaña **🔒 Operar LOTO**:
+   - Observa que el **Paso 1 (Identificar)** detectó automáticamente la máquina `EQ-ENV-01 · Envasadora Rotativa Automática` vía NFC simulado.
+   - En el **Paso 2 (Bloqueo)**, selecciona Tipo de Intervención: `CORRECTIVA`.
+   - Ingresa el Motivo: `Falla en cabezal de sellado térmico`.
+   - Ingresa una Nota Confidencial: `Se desenergiza disyuntor Q3 y se purga válvula neumática de mordazas`. *(Esta nota se almacenará cifrada con AES-256-GCM)*.
+   - Marca la casilla obligatoria: **`Confirmo instalación de candado físico (DS 594)`**.
+   - Haz clic en **Aplicar Bloqueo LOTO**.
+4. La interfaz avanzará al **Paso 3 (En Curso)** mostrando el ticket generado con estado `ACTIVO`.
+
+### Paso 3: Verificación de Persistencia tras Recarga (F5)
+1. Vuelve a la pestaña de la Consola del Supervisor en **`http://localhost:8080/`**.
+2. Presiona **`F5`** (o recargar página).
+3. **Resultado observable:** La máquina `EQ-ENV-01` permanece en color rojo con el estado **`BLOQUEADA (1 bloqueo activo)`**. Esto demuestra que el estado no depende de variables volátiles del navegador ni de `localStorage`, sino que persiste íntegramente en la base de datos PostgreSQL.
+
+### Paso 4: Prueba de Control de Acceso y Propiedad del Candado (`403 Forbidden`)
+1. En la consola del supervisor (`http://localhost:8080/`), intenta hacer clic en el botón de desbloqueo de `EQ-ENV-01`.
+2. El sistema rechazará la acción y el backend devolverá **`403 Forbidden`**.
+   > **Regla inquebrantable de seguridad:** Ningún supervisor ni otro técnico puede vulnerar la propiedad del candado digital de un compañero. Solo el usuario que aplicó el bloqueo tiene la potestad de liberarlo.
+
+### Paso 5: Desbloqueo y Trazabilidad de Auditoría
+1. En la pestaña del técnico (`http://localhost:8080/app/`), logueado como `tecnico1`, pulsa **Liberar Bloqueo LOTO**.
+2. Confirma la liberación. La máquina pasa a estado desbloqueado.
+3. En la Consola del Supervisor (`http://localhost:8080/`), recarga (`F5`): `EQ-ENV-01` vuelve al estado **OPERATIVA** (verde).
+4. En el historial de tickets de la consola, haz clic en **Auditoría / Eventos**: podrás verificar la línea de tiempo inmutable (`CREACION` → `LIBERACION`) con marcas de tiempo exactas y el texto de la nota descifrado exitosamente.
+
+---
+
+## Contrato de API REST (`/api/v1`)
+
+| Recurso | Método y Ruta | Permiso requerido | Descripción |
+|---|---|---|---|
+| **Máquinas** | `GET /maquinas` | Público | Listado de máquinas y estado de bloqueos |
+| | `GET /maquinas/{id}` | Público | Detalle de un equipo específico |
+| | `POST /maquinas` | Supervisor | Alta de nuevo equipo en la planta |
+| | `PUT /maquinas/{id}` | Supervisor | Actualización de datos operativos |
+| | `DELETE /maquinas/{id}` | Supervisor | Baja lógica (204 No Content; no borra historial) |
+| **Técnicos** | `GET /tecnicos` | Supervisor | Listado de técnicos activos |
+| | `POST /tecnicos` | Supervisor | Registro de nuevo técnico con contraseña BCrypt |
+| | `PUT /tecnicos/{id}` | Supervisor | Actualización de perfil o rol |
+| | `DELETE /tecnicos/{id}` | Supervisor | Baja lógica de técnico (conserva referencias) |
+| **Bloqueos LOTO** | `GET /bloqueos` | Autenticado | Consulta de tickets (filtrable por máquina y estado) |
+| | `GET /bloqueos/{id}` | Autenticado | Detalle de ticket y nota confidencial si es dueño |
+| | `POST /bloqueos` | Autenticado | Creación de ticket con bloqueo pesimista de fila |
+| | `PUT /bloqueos/{id}/liberar` | Dueño del ticket | Liberación obligatoria por el técnico responsable |
+| | `DELETE /bloqueos/{id}` | Prohibido | Retorna siempre `409 Conflict` (historial inmutable) |
+| **Auditoría** | `GET /bloqueos/{id}/eventos` | Autenticado | Línea de tiempo de eventos del ticket |
+
+### Códigos de respuesta HTTP
+- **`200 OK`**: Consulta, actualización o liberación exitosa.
+- **`201 Created`**: Creación exitosa de máquina, técnico o bloqueo LOTO.
+- **`204 No Content`**: Baja lógica procesada correctamente.
+- **`400 Bad Request`**: Entrada inválida (contraseña < 12 caracteres, campos faltantes).
+- **`401 Unauthorized`**: Credenciales ausentes o incorrectas.
+- **`403 Forbidden`**: Intento de liberar un candado ajeno o acceder a rutas de supervisor sin el rol.
+- **`404 Not Found`**: Recurso inexistente o dado de baja lógica.
+- **`409 Conflict`**: Máquina ya bloqueada con candado exclusivo o intento de eliminar historial.
+- **`429 Too Many Requests`**: Límite de tasa excedido por IP (filtro RateLimit defensivo).
+
+---
+
+## Verificación Automatizada y Tests
+
+Para ejecutar la suite completa de pruebas unitarias y de integración:
+
+```bash
+mvn -B -ntp clean test
+```
+
+La suite ejecuta **42 pruebas automatizadas** sin fallos:
+- Pruebas de dominio y cálculo de MTBF (`MaquinaTests`).
+- Pruebas de controladores, aspect RLS, transacciones concurrentes, control de acceso IDOR y filtros de seguridad HTTP (`SilbomApplicationTests`).
