@@ -41,7 +41,7 @@ echo "[2/6] Enlazando APK base y assets..."
 
 echo "[3/6] Compilando código Java..."
 javac \
-  --release 11 \
+  --release 8 \
   -cp "$PLATFORM_JAR" \
   -d "$OBJ_DIR" \
   "$GEN_DIR/cl/silbom/tecnico/R.java" \
