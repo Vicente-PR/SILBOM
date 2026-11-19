@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="frame-src 'none'; object-src 'none'; base-uri 'none'">
   <meta name="theme-color" content="#0CB7F2">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="SILBOM">
@@ -1234,13 +1235,15 @@
             </button>
           </div>
 
-          <div class="nfc-tap-area" aria-label="Identificación mediante enlaces NFC o QR">
+          <div class="nfc-tap-area" aria-label="Lectura NFC nativa de Android">
             <div class="nfc-pulse-ring">📡</div>
-            <strong style="color: var(--text-main); display: block; font-size: 0.98rem;">Identificar con etiqueta NFC o QR</strong>
+            <strong style="color: var(--text-main); display: block; font-size: 0.98rem;">Identificar máquina con NFC</strong>
             <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 4px;">
-              NFC NDEF y QR abren enlaces HTTPS con ?maquina=EQ-...
+              Las etiquetas físicas guardan un código NDEF de texto, por ejemplo EQ-COM-03.
             </span>
-            <div class="nfc-tap-btn">En iPhone: acerca la parte superior a la etiqueta y toca la notificación, o usa la cámara con el QR</div>
+            <button type="button" id="btn-start-nfc" class="nfc-tap-btn" onclick="startNativeNfcScan()" style="border: 0; cursor: pointer; width: 100%;">📡 Escanear etiqueta NFC</button>
+            <button type="button" id="btn-cancel-nfc" class="btn-step-secondary hidden" onclick="cancelNativeNfcScan()" style="margin-top: 10px;">Cancelar lectura NFC</button>
+            <p id="nfc-scan-status" role="status" aria-live="polite" style="font-size: 0.76rem; margin-top: 10px; color: var(--text-muted);">La selección manual sigue disponible.</p>
           </div>
 
           <div class="or-divider"><span>O SELECCIÓN MANUAL EN PLANTA</span></div>
@@ -1563,6 +1566,7 @@
   </div>
 
   <script src="./api-client.js"></script>
+  <script src="./nfc-code.js"></script>
   <script>
     /* ==========================================================================
        CONFIGURACIÓN DE SERVIDOR Y ESTADO EN MEMORIA (ZERO CREDENCIALES EN STORAGE)
@@ -2256,6 +2260,103 @@
       if (AppState.pendingOperation.method === 'POST') await executeDigitalLock();
       else await executeDigitalUnlock();
     }
+
+    /* ==========================================================================
+       NFC Android: el puente Java lee NDEF; la web valida contra la API real.
+       No habilitar ninguna operación LOTO hasta que el catálogo quede confirmado.
+       ========================================================================== */
+    let nativeNfcScanning = false;
+    let nativeNfcProcessing = false;
+
+    function updateNativeNfcUi(message) {
+      const status = document.getElementById('nfc-scan-status');
+      if (status) status.textContent = message;
+      const start = document.getElementById('btn-start-nfc');
+      const cancel = document.getElementById('btn-cancel-nfc');
+      if (start) start.disabled = nativeNfcScanning || nativeNfcProcessing;
+      if (cancel) cancel.classList.toggle('hidden', !nativeNfcScanning);
+    }
+
+    function startNativeNfcScan() {
+      if (AppState.isSubmitting || AppState.pendingOperation) {
+        setOperationStatus('Termina o verifica la operación pendiente antes de escanear.', 'warning');
+        return;
+      }
+      if (nativeNfcScanning || nativeNfcProcessing) return;
+      if (!window.SilbomAndroidNfc || typeof window.SilbomAndroidNfc.startScan !== 'function') {
+        updateNativeNfcUi('La lectura NFC real está disponible en la aplicación Android instalada, no en el navegador.');
+        showToast('Utiliza la app Android o la selección manual.', '⚠️');
+        return;
+      }
+      nativeNfcScanning = true;
+      updateNativeNfcUi('Acerca el teléfono a una etiqueta NFC con el código de la máquina.');
+      window.SilbomAndroidNfc.startScan();
+    }
+
+    function cancelNativeNfcScan() {
+      if (!nativeNfcScanning) return;
+      nativeNfcScanning = false;
+      updateNativeNfcUi('Lectura NFC cancelada.');
+      if (window.SilbomAndroidNfc && typeof window.SilbomAndroidNfc.cancelScan === 'function') {
+        window.SilbomAndroidNfc.cancelScan();
+      }
+    }
+
+    window.SilbomNfc = Object.freeze({
+      onError(reason) {
+        nativeNfcScanning = false;
+        nativeNfcProcessing = false;
+        const messages = {
+          nfc_unavailable: 'Este dispositivo no dispone de NFC.',
+          nfc_disabled: 'Activa NFC en la configuración de Android.',
+          cancelled: 'Lectura NFC cancelada.',
+          no_ndef: 'La etiqueta no contiene registros NDEF compatibles.',
+          no_text: 'La etiqueta no tiene un registro NDEF de texto.',
+          multiple_text: 'La etiqueta tiene varios códigos. Graba uno solo por máquina.',
+          invalid_code: 'El identificador NFC no tiene el formato esperado.',
+          read_failed: 'No se pudo leer la etiqueta. Vuelve a acercar el teléfono.',
+          scan_failed: 'No se pudo iniciar el lector NFC.'
+        };
+        updateNativeNfcUi(messages[reason] || 'Se produjo un error al leer la etiqueta NFC.');
+        if (reason !== 'cancelled') setOperationStatus(messages[reason] || 'Error NFC.', 'warning');
+      },
+      async onRead(rawCode) {
+        if (!nativeNfcScanning || nativeNfcProcessing) return;
+        nativeNfcScanning = false;
+        nativeNfcProcessing = true;
+        updateNativeNfcUi('Código leído. Verificando máquina con el servidor...');
+        const code = window.SilbomNfcCode.normalizeCode(rawCode);
+        try {
+          if (!window.SilbomNfcCode.isValidCode(code)) {
+            throw new Error('El código de la etiqueta es inválido.');
+          }
+          if (AppState.pendingOperation || AppState.isSubmitting) {
+            throw new Error('Primero confirma la operación LOTO pendiente.');
+          }
+          // Lectura individual: sin verificación del backend no se abre ninguna ficha.
+          const result = await apiFetch(window.SilbomNfcCode.machineEndpoint(code));
+          if (result.status === 404) throw new Error('Máquina no registrada en SILBOM.');
+          if (result.status === 401 || result.status === 403) throw new Error('No autorizado para consultar esta máquina.');
+          if (!result.ok || !result.data || result.data.id !== code) {
+            throw new Error('El servidor no confirmó los datos de la máquina.');
+          }
+          const refreshed = await loadMachinesFromApi();
+          if (!refreshed || !AppState.machinesConfirmed || !AppState.machines.some(m => m.id === code)) {
+            throw new Error('No fue posible confirmar el catálogo de máquinas.');
+          }
+          switchMobileTab('operar');
+          loadMachineIntoForm(code);
+          showToast('Máquina verificada: ' + code, '📡');
+          updateNativeNfcUi('Máquina ' + code + ' verificada desde el servidor.');
+        } catch (err) {
+          setOperationStatus(err.message || 'No se pudo verificar la máquina.', 'error');
+          updateNativeNfcUi('No se pudo verificar la máquina. Revisa la conexión e inténtalo otra vez.');
+        } finally {
+          nativeNfcProcessing = false;
+          updateNativeNfcUi(document.getElementById('nfc-scan-status')?.textContent || '');
+        }
+      }
+    });
 
     function applyMachineLink() {
       const id = AppState.pendingMachineLink;
