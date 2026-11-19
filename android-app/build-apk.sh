@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 ANDROID_SDK="${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}"
-BUILD_TOOLS="$ANDROID_SDK/build-tools/34.0.0"
+BUILD_TOOLS="$ANDROID_SDK/build-tools/35.0.0"
 PLATFORM_JAR="$ANDROID_SDK/platforms/android-34/android.jar"
 
 if [[ ! -f "$PLATFORM_JAR" ]]; then
