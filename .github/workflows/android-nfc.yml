@@ -1,0 +1,44 @@
+name: Android NFC - APK Debug
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'android-app/**'
+      - 'tests/android-nfc/**'
+      - '.github/workflows/android-nfc.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  android-nfc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install API and Build Tools
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - name: Run NFC decoder and machine code tests
+        run: bash tests/android-nfc/run-tests.sh
+      - name: Assemble and verify Debug APK
+        run: bash android-app/build-apk.sh
+      - name: Publish APK as workflow artifact (not committed)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SILBOM-Android-NFC-debug
+          path: android-app/build/silbom-tecnico.apk
+          if-no-files-found: error
+          retention-days: 7
