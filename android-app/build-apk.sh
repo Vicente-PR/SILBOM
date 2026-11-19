@@ -45,6 +45,7 @@ javac \
   -cp "$PLATFORM_JAR" \
   -d "$OBJ_DIR" \
   "$GEN_DIR/cl/silbom/tecnico/R.java" \
+  "$SCRIPT_DIR/src/cl/silbom/tecnico/NfcTextDecoder.java" \
   "$SCRIPT_DIR/src/cl/silbom/tecnico/MainActivity.java"
 
 echo "[4/6] Convirtiendo bytecode a Dalvik (classes.dex)..."
