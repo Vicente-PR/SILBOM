@@ -67,7 +67,7 @@ NDEF Text UTF-8/UTF-16 y prefijos de idioma `en`/`es`.
 ## Construcción de APK Debug
 
 Requiere JDK, `keytool`, Java y Android SDK con API 34 y
-Build Tools 34.0.0 en `ANDROID_SDK_ROOT` (o `~/Android/Sdk`):
+Build Tools 35.0.0 en `ANDROID_SDK_ROOT` (o `~/Android/Sdk`):
 
 ```bash
 bash tests/android-nfc/run-tests.sh
