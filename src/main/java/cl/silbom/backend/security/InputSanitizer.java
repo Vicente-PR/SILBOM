@@ -44,11 +44,18 @@ public final class InputSanitizer {
         cleaned = HTML_TAG_PATTERN.matcher(cleaned).replaceAll("");
 
         // 4. Limpiar caracteres de control de terminal/CRLF (prevenir Log Injection)
-        cleaned = cleaned.replaceAll("[\\r\\n]+", " ");
+        cleaned = cleaned.replaceAll("[\\p{Cc}\\p{Cf}]+", " ");
 
         // 5. Escapar caracteres residuales peligrosos
         cleaned = cleaned.replace("<", "&lt;").replace(">", "&gt;");
 
         return cleaned.trim();
+    }
+
+    public static String required(String text, int min, int max) {
+        String result = sanitize(text);
+        if (result == null || result.length() < min || result.length() > max)
+            throw new IllegalArgumentException("Texto vacío o fuera de longitud tras normalizar");
+        return result;
     }
 }

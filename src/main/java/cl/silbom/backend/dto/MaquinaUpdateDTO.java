@@ -26,6 +26,7 @@ public record MaquinaUpdateDTO(
 
     @NotNull(message = "Las horas operativas son obligatorias")
     @PositiveOrZero(message = "Las horas operativas no pueden ser negativas")
+    @DecimalMax("999999999.9")
     Double horasOperativas,
 
     @NotNull(message = "El número de fallas correctivas es obligatorio")

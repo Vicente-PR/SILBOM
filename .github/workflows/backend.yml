@@ -1,0 +1,43 @@
+name: Backend Hito 2
+on:
+  push:
+    branches: [improvement/backend-hito2]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          # Fixture exclusiva de una base efímera de CI; no es una credencial de despliegue.
+          POSTGRES_PASSWORD: ci-ephemeral-only-not-production
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Cliente PostgreSQL
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends postgresql-client
+      - name: Rol de aplicación y verificación completa
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: postgres
+          PGPASSWORD: ci-ephemeral-only-not-production
+        run: |
+          app_password=$(openssl rand -hex 32)
+          echo "::add-mask::$app_password"
+          export TEST_DB_USERNAME=silbom_app
+          export TEST_DB_PASSWORD="$app_password"
+          psql -v ON_ERROR_STOP=1 <<SQL
+          CREATE ROLE silbom_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD '$app_password';
+          SQL
+          bash scripts/test-postgres.sh

@@ -1,168 +1,212 @@
-# SILBOM - Sistema Inteligente de Lectura y Bloqueo Operativo de Maquinaria
-### Backend REST API - Planta San Joaquín (Hito 2)
+# SILBOM — Backend Hito 2
 
----
+API REST universitaria para maquinaria e intervenciones LOTO. Java 21, Spring
+Boot 3.5.16, Maven, JPA, Spring Security y PostgreSQL 15–17 (probado con 17).
 
-## 👥 Equipo de Trabajo
-* **Vicente** - GitHub: [@Vicente-PR](https://github.com/Vicente-PR) (Coordinador)
-* **Bastián** - GitHub: [@Bvstivn-A](https://github.com/Bvstivn-A) (Responsable Documento)
-* **Belén** - GitHub: [@lenbbee](https://github.com/lenbbee) (Responsable Prototipo)
-* **Benjamín** - GitHub: [@BenjaHK](https://github.com/BenjaHK) (Responsable Repositorio)
+El estado `bloqueada` es un **registro digital**. SILBOM no instala candados,
+no aísla energía, no verifica energía cero ni certifica cumplimiento legal.
+La confirmación del candado es una declaración del técnico autenticado.
 
----
+## Arquitectura
 
-## 📖 1. Contexto del Proyecto y Dominio LOTO
+Monolito en `cl.silbom.backend`: controller recibe HTTP y valida DTO; service
+aplica autorización, reglas y transacciones; repository persiste con consultas
+parametrizadas y bloqueos de filas; model controla transiciones; DTO evita
+exponer entidades/hashes; exception normaliza errores; security autentica,
+autoriza y cifra; config fija el contexto RLS y carga datos iniciales.
 
-SILBOM digitaliza la auditoría del protocolo de seguridad industrial **LOTO (Lockout / Tagout)** mediante etiquetas pasivas NFC/QR adheridas a las máquinas de la **Planta San Joaquín**, garantizando el estricto cumplimiento del **Decreto Supremo 594** y **DS 44** de la legislación chilena.
+Tablas: maquinas, tecnicos, fallas, bloqueos_loto y eventos_loto. Los vínculos
+incluyen la planta mediante claves foráneas compuestas. El ID de máquina es
+único en todo el sistema.
 
-### Problemas Críticos Industriales que Resuelve
-1. **Control en "Energía Cero":** Funciona cuando la maquinaria está totalmente desenergizada (apagada), auditando el estado operativo mediante el smartphone del técnico de mantenimiento.
-2. **Bloqueo Grupal Concurrente (Multi-LOTO):** Si múltiples técnicos (`bloqueosActivos`) intervienen un equipo, la máquina **DEBE** permanecer en estado `bloqueada = true` hasta que el último técnico retire su candado (`bloqueosActivos == 0`).
-3. **Cálculo Dinámico de MTBF (Mean Time Between Failures):**
-   $$\text{MTBF} = \text{RedondearAUnDecimal}\left(\frac{\text{horasOperativas}}{\text{fallasCorrectivas}}\right)$$
-   *(Si $\text{fallasCorrectivas} = 0$, $\text{MTBF} = \text{horasOperativas}$)*.
-   * Intervención `CORRECTIVA` (avería no programada): Suma +1 a `fallasCorrectivas` y penaliza el MTBF.
-   * Intervención `PREVENTIVA` (mantención programada): **NO** altera las fallas ni penaliza el MTBF.
-4. **Cumplimiento Legal DS 594:** El backend rechaza (`400 Bad Request`) cualquier bloqueo si el usuario no declara haber instalado el candado físico mecánico (`confirmacionCandadoDs594 = true`).
+## Instalación en otro computador
 
----
+1. Instala JDK 21, Maven 3.9+ y PostgreSQL 15, 16 o 17 con los instaladores
+   oficiales o el gestor de paquetes de tu sistema. Comprueba `java -version`,
+   `javac -version`, `mvn -version` y `psql --version`.
+2. Inicia PostgreSQL. Crea un propietario/migrador y un usuario de aplicación
+   separados; ninguno necesita superusuario. Ejemplo Linux:
 
-## 🏗️ 2. Arquitectura de Software (Monolito en 3 Capas)
+   ```bash
+   sudo -u postgres createuser --pwprompt silbom_owner
+   sudo -u postgres createuser --pwprompt silbom_app
+   sudo -u postgres createdb --owner=silbom_owner silbom_db
+   ```
 
-* **Lenguaje:** Java 21 (LTS)
-* **Framework:** Spring Boot 3.3.5 (Maven)
-* **Motor de Base de Datos:** PostgreSQL 17 / 16 (Persistencia permanente en disco)
-* **Paquete Base:** `cl.silbom.backend`
+3. Desde la raíz, ejecuta como propietario/migrador:
 
+   ```bash
+   psql -h localhost -U silbom_owner -d silbom_db -v ON_ERROR_STOP=1 -f db/schema.sql
+   ```
+
+   El script y `db/migrations/V2__integridad_loto.sql` son transaccionales y
+   repetibles, sin DROP TABLE. Conceden a silbom_app permisos sin DDL ni DELETE
+   físico. Otro rol se selecciona con `-v app_role=nombre_del_rol`.
+   La API no debe ser propietaria ni usar superusuario o BYPASSRLS.
+   Para una base original existente, respáldala y ejecuta como su propietario.
+   La migración conserva tickets/notas y no inventa identidades ni agrupa fallas
+   antiguas. Si una restricción falla, se revierte la transacción: no se corrigen
+   registros a ciegas. No uses producción para demostraciones o pruebas.
+
+4. Prepara la configuración:
+
+   ```bash
+   cp .env.example .env
+   chmod 600 .env
+   openssl rand -base64 32
+   ```
+
+   Edita .env con la contraseña real del rol, una clave Base64 de exactamente
+   32 bytes y credenciales iniciales individuales. Conserva la clave AES para
+   poder leer notas anteriores. No publiques .env. Spring lo carga como archivo
+   **Java properties** desde el directorio de ejecución, sin `source`; no uses
+   comillas de shell. Las variables exportadas tienen prioridad.
+
+5. Compila, prueba y arranca desde la raíz:
+
+   ```bash
+   mvn clean package
+   java -jar target/silbom-backend-1.0.0.jar
+   ```
+
+   Alternativa: `mvn spring-boot:run`. Puerto predeterminado 8080. Si la planta
+   no tiene máquinas se cargan seis equipos y tres tickets históricos de demo.
+   Las variables de bootstrap crean la primera cuenta supervisora sin contraseña
+   predeterminada; retíralas después. En la nube de esta sesión usa activate.sh
+   y los ajustes Maven/proxy guardados bajo /workspace/.silbom-cloud.
+
+## Variables
+
+| Variable | Propósito |
+|---|---|
+| DB_URL | JDBC PostgreSQL, por defecto base local silbom_db |
+| DB_USERNAME / DB_PASSWORD | Rol de aplicación, nunca el migrador |
+| ENCRYPTION_SECRET | Base64 de 32 bytes para AES-256-GCM |
+| PLANTA_ID | Planta definida por el servidor, no por el cliente |
+| SERVER_PORT | Puerto, por defecto 8080 |
+| SILBOM_BOOTSTRAP_USERNAME | Supervisor inicial, solo primera instalación |
+| SILBOM_BOOTSTRAP_PASSWORD | Mínimo 12 caracteres, máximo 72 bytes UTF-8 |
+
+## Identidad, permisos y compatibilidad
+
+HTTP Basic individual y BCrypt costo 12 reemplazan a la API key compartida.
+APP_API_KEY deja de autorizar operaciones. Fuera de loopback se necesita TLS
+configurado en un servidor/proxy: una cabecera HSTS no instala HTTPS.
+
+| Operación | Permiso |
+|---|---|
+| Lectura de máquinas | Pública para el panel |
+| CRUD de máquinas/técnicos | Supervisor de la planta |
+| Lectura de tickets/eventos | Técnico o supervisor de la planta |
+| Notas confidenciales | Responsable del ticket o supervisor |
+| Crear bloqueo | Técnico/supervisor; dueño obtenido de autenticación |
+| Liberar bloqueo | Solo su responsable, incluso frente al supervisor |
+| DELETE de tickets | Siempre 409: no se elimina historial |
+
+DELETE en máquinas/técnicos es baja lógica (204); el GET posterior devuelve 404.
+Se conservan referencias e identidades y no se reutilizan usuarios dados de baja.
+No se dan de baja equipos/técnicos con bloqueos activos ni se retira el propio
+rol supervisor. Los tickets legados sin identidad necesitan un procedimiento
+supervisado futuro; no se permite eludir la propiedad del candado.
+
+Cambios de contrato aprobados: Basic individual, GET de tickets autenticado,
+referenciaFalla obligatoria para CORRECTIVA, MTBF nullable y ningún DELETE de
+historial. nombreTecnico es un campo legado opcional ignorado para identificar
+al responsable. El cliente debe mostrar MTBF null como «no calculable».
+El HTML docs/Silbom1.html sigue siendo un prototipo offline, sin llamadas API.
+
+## API
+
+Base `/api/v1`; User-Agent obligatorio. Configura Basic Auth en Postman con
+credenciales locales, sin guardarlas en colecciones compartidas ni incrustar
+credenciales de integración en el navegador.
+
+| Recurso | Rutas |
+|---|---|
+| Máquinas | GET/POST /maquinas; GET/PUT/DELETE /maquinas/{id} |
+| Técnicos | GET/POST /tecnicos; GET/PUT/DELETE /tecnicos/{id} |
+| Tickets | GET/POST /bloqueos; GET/DELETE /bloqueos/{id} |
+| Liberación | PUT /bloqueos/{id}/liberar |
+| Eventos | GET /bloqueos/{id}/eventos |
+
+Filtros: /maquinas?bloqueada=true y
+/bloqueos?maquinaId=EQ-ENV-01&estado=ACTIVO.
+
+Crear máquina como supervisor:
+
+```json
+{"id":"EQ-DEMO-01","nombre":"Equipo demo","area":"Taller","icono":"X","horasOperativas":100.0,"fallasCorrectivas":0}
 ```
-cl.silbom.backend
-├── controller   # REST Controllers (@Valid, ResponseEntity, Códigos HTTP exactos, CERO lógica)
-├── service      # Lógica de Negocio (Multi-LOTO, MTBF, validación legal, @Transactional)
-├── repository   # Spring Data JPA con consultas parametrizadas (Anti-SQLi)
-├── model        # Entidades JPA (Encapsulamiento estricto, métodos de dominio)
-├── dto          # Objetos de Transferencia Inmutables (Java Records)
-├── security     # Filtros de Ciberseguridad (Rate Limit, Headers, API Key, AES-256-GCM)
-├── exception    # GlobalExceptionHandler (@RestControllerAdvice sin exponer stack traces)
-└── config       # DataInitializer con seed inicial de Planta San Joaquín
+
+Crear técnico como supervisor (contraseña ilustrativa a reemplazar localmente):
+
+```json
+{"username":"tecnico.demo","nombre":"Técnico demo","password":"CAMBIAR_CONTRASENA_LOCAL","rol":"TECNICO"}
 ```
 
----
+Registrar bloqueo con credencial individual:
 
-## 🛡️ 3. Los 20 Controles de Ciberseguridad Backend Implementados
-
-| # | Control de Seguridad | Implementación en SILBOM | Ubicación en el Código |
-|---|---|---|---|
-| **1** | **Ocultar credenciales** | Variables de entorno con defaults seguros | `src/main/resources/application.properties` |
-| **2** | **Eliminación de secretos en Git** | `.gitignore` estricto y plantilla `.env.example` | `.gitignore`, `.env.example` |
-| **3** | **Separación de roles DB** | Rol `silbom_app` con permisos mínimos (sin superusuario) | `db/schema.sql` |
-| **4** | **Row-Level Security (RLS)** | Políticas PostgreSQL por `planta_id` | `db/schema.sql`, `MaquinaRepository.java` |
-| **5** | **Encriptar datos en reposo** | AES-256-GCM con Vector de Inicialización (IV) dinámico | `CryptoUtils.java` |
-| **6** | **Forzar autenticación** | `ApiKeyAuthFilter` en rutas de mutación (`POST, PUT, DELETE`) | `ApiKeyAuthFilter.java` |
-| **7** | **Restringir acceso (Anti-IDOR)** | Validación de pertenencia por `planta_id` en Service | `MaquinaService.java`, `BloqueoService.java` |
-| **8** | **Encapsulamiento y Anti-Mass Assignment** | Atributos `private`, DTOs `record`, sin `@Setter` públicos | `Maquina.java`, `BloqueoLoto.java` |
-| **9** | **Proteger Session Cookies** | `HttpOnly=true`, `Secure=true`, `SameSite=Strict` | `application.properties` |
-| **10** | **Hashear contraseñas** | `BCryptPasswordEncoder` con factor de costo 12 | `SecurityConfig.java` |
-| **11** | **Rate Limiting** | Ventana de 60 seg en memoria (máx. 60 peticiones/minuto) | `RateLimitFilter.java` |
-| **12** | **Protección contra bots** | Validación de User-Agent y campos trampa honeypot | `RateLimitFilter.java`, `*CreateDTO.java` |
-| **13** | **Parametrizar queries** | JPA y consultas `@Query` con `:param` (Anti-SQLi) | `MaquinaRepository.java`, `BloqueoLotoRepository.java` |
-| **14** | **Validar inputs en la frontera** | `@NotBlank`, `@Size`, `@Pattern`, `@AssertTrue` en DTOs | Paquete `cl.silbom.backend.dto` |
-| **15** | **Sanitizar contenido** | Limpieza regex de etiquetas `<script>` y HTML malicioso | `InputSanitizer.java` |
-| **16** | **Restringir archivos subidos** | `spring.servlet.multipart.enabled=false` | `application.properties` |
-| **17** | **Devolver solo datos necesarios** | DTOs de salida y `server.error.include-stacktrace=never` | `GlobalExceptionHandler.java` |
-| **18** | **Security Headers y CORS** | Cabeceras HSTS, CSP, X-Frame-Options y orígenes cerrados | `SecurityHeadersFilter.java`, `SecurityConfig.java` |
-| **19** | **Forzar HTTPS** | `Strict-Transport-Security: max-age=31536000; includeSubDomains` | `SecurityHeadersFilter.java` |
-| **20** | **Escanear dependencias** | Dependencias oficiales y comando de auditoría | `pom.xml`, Sección 5 de esta guía |
-
----
-
-## 🚀 4. Guía de Puesta en Marcha (Paso a Paso)
-
-### 4.1 Requisitos Previos
-* **Java Development Kit (JDK):** Versión 21 (o 17+).
-* **Apache Maven:** Versión 3.9+ (ya configurado en el sistema o incluido en PATH).
-* **PostgreSQL:** Versión 15, 16 o 17 corriendo en el puerto `5432`.
-
-### 4.2 Configuración de la Base de Datos PostgreSQL
-1. Abre tu terminal de PostgreSQL (`psql`) o interfaz gráfica (pgAdmin / DBeaver) como superusuario `postgres`:
-```sql
-CREATE DATABASE silbom_db;
-CREATE USER silbom_app WITH ENCRYPTED PASSWORD 'CAMBIAR_PASSWORD';
-GRANT ALL PRIVILEGES ON DATABASE silbom_db TO silbom_app;
+```json
+{"maquinaId":"EQ-DEMO-01","tipoIntervencion":"CORRECTIVA","motivo":"Inspección de falla registrada","confirmacionCandadoDs594":true,"referenciaFalla":"FALLA-2026-001"}
 ```
-2. Ejecuta el script DDL y los datos iniciales de Planta San Joaquín:
+
+Todos los participantes de una misma falla usan la misma referencia en esa
+máquina/planta; solo su primera aparición suma una falla. Una avería nueva usa
+otra referencia. PREVENTIVA omite referenciaFalla y no incrementa fallas.
+
+MTBF = horas operativas declaradas / fallas observadas, redondeado a un decimal;
+sin fallas es null. No avanza con el reloj ni predice exactamente futuras fallas.
+El supervisor debe mantener horas y conteos del mismo período de medición; aún
+no se modelan explícitamente sus fechas.
+
+HTTP: 200 lectura/actualización/liberación; 201 alta; 204 baja lógica; 400 entrada
+inválida; 401 credencial ausente/inválida; 403 sin permiso; 404 inexistente; 405
+verbo no admitido; 409 conflicto de estado/integridad/concurrencia; 429 límite.
+No se devuelve SQL ni stack trace.
+
+## Pruebas y demostración
+
 ```bash
-psql -U postgres -d silbom_db -f db/schema.sql
+mvn test  # dominio, Mockito, seguridad y HTTP con H2
 ```
 
-### 4.3 Configurar Variables de Entorno
-Crea tu archivo `.env` en la raíz copiando la plantilla:
+Para PostgreSQL real se requiere un administrador de pruebas con CREATEDB y
+un rol de aplicación no propietario ya existente. Configura PGHOST, PGPORT,
+PGUSER y, si corresponde, PGPASSWORD de forma segura. Exporta TEST_DB_USERNAME y
+TEST_DB_PASSWORD para el rol de aplicación:
+
 ```bash
-cp .env.example .env
-```
-*(Si usas los valores por defecto locales de `application.properties`, no es obligatorio editar nada para desarrollo)*.
-
-### 4.4 Compilar y Ejecutar Pruebas Automatizadas
-Para verificar la compilación y ejecutar los tests unitarios y de integración:
-```bash
-mvn clean test
+bash scripts/test-postgres.sh
 ```
 
-### 4.5 Iniciar el Servidor Backend
-Ejecuta la aplicación Spring Boot:
-```bash
-mvn spring-boot:run
-```
-O empaqueta el JAR ejecutable:
-```bash
-mvn clean package
-java -jar target/silbom-backend-1.0.0.jar
-```
-El servidor quedará escuchando en `http://localhost:8080`.
+El auxiliar crea una base efímera propia, aplica dos veces el esquema, ejecuta
+`mvn -Ppostgres-it verify` y elimina solo esa base al terminar. No recibe un
+nombre de base de producción. La suite verifica transacciones/conexiones
+independientes, doble liberación, rollback, persistencia, CHECK/FK, RLS y
+protección de historial. `mvn test` por sí solo no ejecuta esa suite. Resultados:
+`target/surefire-reports` y `target/failsafe-reports` de la ejecución actual.
 
----
+Importa docs/SILBOM_Postman_Collection.json y configura sus variables vacías en
+un entorno local. Los IDs se capturan dinámicamente; demuestra CRUD, permisos,
+Multi-LOTO y errores sin borrar tickets. La máquina termina de baja lógica y su
+historial permanece.
 
-## 🔍 5. Auditoría de Dependencias (Control 20)
+## Seguridad y pendientes
 
-Para auditar y verificar que no existan vulnerabilidades conocidas (CVEs) en las librerías del proyecto:
-```bash
-# Verificar actualizaciones disponibles
-mvn versions:display-dependency-updates
+Ver docs/controles-seguridad.md y docs/auditoria-backend.md para evidencia,
+limitaciones y evaluación de la rúbrica. Boot pasó de 3.3.5 a 3.5.16 desde Maven
+Central, conservando Java 21 y la línea principal 3.x. La consulta externa de
+CVE/soporte puede estar bloqueada: no se afirma ausencia de vulnerabilidades.
 
-# Escaneo de vulnerabilidades con el plugin oficial de OWASP (opcional)
-mvn org.owasp:dependency-check-maven:check
-```
+Hito 3: frontend conectado, QR/NFC real, período de medición explícito,
+recuperación/rotación de credenciales, paginación, observabilidad y procedimiento
+para tickets legados sin identidad. No se implementa una liberación privilegiada
+que evite el permiso del responsable.
 
----
+Se evaluó Flyway: es conveniente versionar migraciones, pero no se activa un
+baseline automático sobre bases existentes desconocidas. En este alcance se
+usa SQL transaccional/repetible; Flyway requiere un inventario y baseline
+explícito, probado y respaldado.
 
-## 🧪 6. Demostración en Vivo en Postman (7 Minutos)
-
-Importa el archivo [`docs/SILBOM_Postman_Collection.json`](docs/SILBOM_Postman_Collection.json) en Postman.
-
-### Flujo Demostrativo Recomendado:
-1. **Petición 1.1:** `GET /api/v1/maquinas` -> Muestra las 6 máquinas base de Planta San Joaquín con sus horas, fallas y MTBF.
-2. **Petición 1.5:** `POST /api/v1/maquinas` (Sin API Key) -> Demuestra el **Control 6 (401 Unauthorized)**.
-3. **Petición 2.2:** `POST /api/v1/bloqueos` (con `confirmacionCandadoDs594: false`) -> Demuestra el rechazo **400 Bad Request** por incumplimiento del **DS 594**.
-4. **Petición 2.3:** `POST /api/v1/bloqueos` (Técnico 1, `CORRECTIVA`) -> La máquina `EQ-ENV-01` pasa a `bloqueada = true`, suma +1 falla y su MTBF se recalcula automáticamente de 233.8 a 175.4.
-5. **Petición 2.4:** `POST /api/v1/bloqueos` (Técnico 2, `PREVENTIVA`) -> **Multi-LOTO:** El contador `bloqueosActivos` sube a 2. Al ser preventiva, el MTBF no se penaliza.
-6. **Petición 2.5:** `PUT /api/v1/bloqueos/4/liberar` -> El Técnico 1 libera su ticket. **La máquina SIGUE bloqueada** (`bloqueosActivos = 1`) para proteger la vida del Técnico 2.
-7. **Petición 2.6:** `PUT /api/v1/bloqueos/5/liberar` -> El Técnico 2 libera su ticket. Al llegar `bloqueosActivos` a 0, la máquina finalmente se declara **desbloqueada** (`bloqueada = false`).
-8. **Petición 2.7:** `DELETE /api/v1/bloqueos/X` (Bloqueo ACTIVO) -> Demuestra que la seguridad industrial prohíbe eliminar bloqueos en curso (**409 Conflict**).
-
----
-
-## 🎓 7. Preguntas de Defensa Técnica (Interrogación Individual)
-
-### ¿Por qué las entidades JPA no tienen setters públicos ni Lombok `@Data`?
-> **Respuesta:** Para aplicar el **Control 8 (Anti-Mass Assignment y Encapsulamiento Estricto)**. Si existieran setters como `setBloqueada(false)` o `setMtbf(10.0)`, un desarrollador o una deserialización mal configurada podrían desbloquear una máquina con operarios adentro o falsificar métricas de confiabilidad. Los cambios de estado ocurren exclusivamente mediante métodos de dominio con validación interna (`registrarEntradaBloqueo`, `registrarSalidaBloqueo`).
-
-### ¿Cómo opera el protocolo Multi-LOTO en caso de intervenciones concurrentes?
-> **Respuesta:** Se modela a través de la variable `bloqueosActivos` en la entidad `Maquina`. Cada bloqueo exitoso incrementa el contador en +1 y activa `bloqueada = true`. Cuando un técnico concluye su labor, se descuenta 1. La máquina **solo y únicamente** pasa a `bloqueada = false` cuando `bloqueosActivos == 0`. Si 3 técnicos intervienen y 2 salen, la máquina debe permanecer energéticamente bloqueada para evitar mutilaciones o muertes de trabajadores.
-
-### ¿Cuál es la diferencia entre una intervención CORRECTIVA y una PREVENTIVA en el MTBF?
-> **Respuesta:** La fórmula de confiabilidad industrial es $\text{MTBF} = \frac{\text{horasOperativas}}{\text{fallasCorrectivas}}$. Una intervención `PREVENTIVA` es una actividad programada de rutina (lubricación, calibración) y no representa una interrupción por falla, por lo que **no penaliza el indicador**. Una intervención `CORRECTIVA` ocurre por rotura o avería no prevista, por lo que suma +1 al contador de fallas y reduce el tiempo medio entre fallas.
-
-### ¿Cómo se valida legalmente el Decreto Supremo 594 en el Backend?
-> **Respuesta:** En la capa web, el DTO `BloqueoCreateDTO` incluye el atributo `@NotNull @AssertTrue Boolean confirmacionCandadoDs594`. Si el cliente HTTP intenta registrar un bloqueo enviando `false` o `null`, el validador de Jakarta detiene el flujo antes de ingresar a la lógica de negocio y responde `400 Bad Request`. Además, en la base de datos se implementa una restricción `CHECK (confirmacion_candado_ds594 = TRUE)`.
-
-### ¿Cómo se evitan ataques de IDOR (Insecure Direct Object References)?
-> **Respuesta:** Aplicando el **Control 7** y **Control 4 (Row-Level Security)**. En el servicio Java, cada consulta busca por `(id, plantaId)`. De este modo, un usuario de una planta no puede leer ni manipular registros de otra planta simplemente adivinando el ID numérico del recurso.
+La revisión posterior de higiene, normalización de notas y documentación pedagógica
+está registrada en [Auditoría de la propuesta Gemini](docs/REGISTRO_AUDITORIA_GEMINI.md).

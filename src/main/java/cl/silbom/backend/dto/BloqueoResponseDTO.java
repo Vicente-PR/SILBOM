@@ -26,7 +26,9 @@ public record BloqueoResponseDTO(
     LocalDateTime horaFin,
     Long duracionMinutos,
     String notasAuditoria,
-    String plantaId
+    String plantaId,
+    Long tecnicoId,
+    Long fallaId
 ) {
     /**
      * Mapper estático para transformar una entidad BloqueoLoto a su DTO de respuesta.
@@ -44,7 +46,7 @@ public record BloqueoResponseDTO(
             b.getHoraFin(),
             b.getDuracionMinutos(),
             notasDescifradas,
-            b.getPlantaId()
+            b.getPlantaId(), b.getTecnicoId(), b.getFallaId()
         );
     }
 }

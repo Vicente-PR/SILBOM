@@ -9,6 +9,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 /**
  * QUÉ HACE:
@@ -27,6 +29,15 @@ public interface BloqueoLotoRepository extends JpaRepository<BloqueoLoto, Long> 
      * Búsqueda por ID asegurando pertenencia a la planta autorizada.
      */
     Optional<BloqueoLoto> findByIdAndPlantaId(Long id, String plantaId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from BloqueoLoto b where b.id=:id and b.plantaId=:planta")
+    Optional<BloqueoLoto> findForUpdate(@Param("id") Long id, @Param("planta") String planta);
+
+    boolean existsByTecnicoIdAndEstado(Long tecnicoId, EstadoBloqueo estado);
+
+    @Query("select b.maquinaId from BloqueoLoto b where b.id=:id and b.plantaId=:planta")
+    Optional<String> findMaquinaId(@Param("id") Long id, @Param("planta") String planta);
 
     /**
      * Lista tickets con filtros dinámicos opcionales por máquina y estado,

@@ -59,6 +59,11 @@ public class BloqueoLoto {
     @Column(name = "planta_id", length = 50, nullable = false)
     private String plantaId;
 
+    @Column(name = "tecnico_id", updatable = false)
+    private Long tecnicoId;
+    @Column(name = "falla_id", updatable = false)
+    private Long fallaId;
+
     /**
      * Constructor por defecto requerido obligatoriamente por la especificación de JPA.
      * Se declara 'protected' para impedir instanciaciones vacías e incompletas.
@@ -72,7 +77,7 @@ public class BloqueoLoto {
     public BloqueoLoto(String maquinaId, TipoIntervencion tipoIntervencion, String motivo,
                        String nombreTecnico, Boolean confirmacionCandadoDs594, String plantaId) {
         if (confirmacionCandadoDs594 == null || !confirmacionCandadoDs594) {
-            throw new IllegalArgumentException("Por normativa DS 594 es obligatorio confirmar el candado físico");
+            throw new IllegalArgumentException("Debe declarar la instalación del candado físico; esto no verifica energía cero");
         }
         this.maquinaId = maquinaId;
         this.tipoIntervencion = tipoIntervencion;
@@ -130,6 +135,15 @@ public class BloqueoLoto {
     public void setNotasAuditoriaCifradas(String notasCifradas) {
         this.notasAuditoriaCifradas = notasCifradas;
     }
+
+    public void asignarResponsable(Long tecnicoId, Long fallaId) {
+        if (this.tecnicoId != null || tecnicoId == null)
+            throw new IllegalStateException("El responsable del bloqueo es inmutable");
+        this.tecnicoId = tecnicoId;
+        this.fallaId = fallaId;
+    }
+    public Long getTecnicoId() { return tecnicoId; }
+    public Long getFallaId() { return fallaId; }
 
     // ====================================================================
     // GETTERS LIMPIOS (Solo lectura de atributos)

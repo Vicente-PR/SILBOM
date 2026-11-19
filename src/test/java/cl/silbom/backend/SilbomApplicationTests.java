@@ -1,223 +1,242 @@
 package cl.silbom.backend;
 
-import cl.silbom.backend.dto.BloqueoCreateDTO;
-import cl.silbom.backend.dto.BloqueoResponseDTO;
-import cl.silbom.backend.dto.MaquinaCreateDTO;
-import cl.silbom.backend.dto.MaquinaResponseDTO;
-import cl.silbom.backend.model.EstadoBloqueo;
-import cl.silbom.backend.model.TipoIntervencion;
-import cl.silbom.backend.service.BloqueoService;
-import cl.silbom.backend.service.MaquinaService;
+import cl.silbom.backend.dto.*;
+import cl.silbom.backend.model.*;
+import cl.silbom.backend.repository.*;
+import cl.silbom.backend.security.TecnicoPrincipal;
+import cl.silbom.backend.service.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.*;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.web.context.WebApplicationContext;
+import java.util.concurrent.atomic.AtomicInteger;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/**
- * QUÉ HACE:
- * Suite de pruebas automatizadas de integración y reglas de negocio para SILBOM.
- *
- * POR QUÉ ESTÁ ESCRITO ASÍ:
- * - Valida de punta a punta las reglas críticas de LOTO, Multi-LOTO, MTBF, DS 594 y Ciberseguridad.
- * - Utiliza H2 en memoria con @ActiveProfiles("test") para que la compilación y pruebas
- *   se ejecuten sin necesidad de tener PostgreSQL iniciado.
- */
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Transactional
+@SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test") @Transactional
+@WithUserDetails("supervisor-test")
 class SilbomApplicationTests {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private MaquinaService maquinaService;
-
-    @Autowired
-    private BloqueoService bloqueoService;
-
-    private static final String API_KEY = "test-api-key-12345";
-
-    @Test
-    @DisplayName("Control 1 y Seed: Carga inicial de las 6 máquinas de Planta San Joaquín")
-    void testCargaInicialMaquinas() throws Exception {
-        mockMvc.perform(get("/api/v1/maquinas")
-                .header("User-Agent", "TestRunner/1.0"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(6))))
-            .andExpect(jsonPath("$[?(@.id == 'EQ-ENV-01')].nombre", contains("Envasadora Rotativa Automática")))
-            .andExpect(jsonPath("$[?(@.id == 'EQ-ENV-01')].mtbf", contains(233.8)))
-            .andExpect(jsonPath("$[?(@.id == 'EQ-PR-04')].mtbf", contains(356.0)));
+    @Autowired WebApplicationContext context;
+    @Autowired ObjectMapper mapper;
+    @Autowired MaquinaService maquinas;
+    @Autowired BloqueoService bloqueos;
+    @Autowired TecnicoService tecnicos;
+    @Autowired TecnicoRepository tecnicoRepository;
+    MockMvc mvc;
+    static AtomicInteger address = new AtomicInteger();
+    @BeforeEach void setup() {
+        String ip="198.51.100."+address.incrementAndGet();
+        mvc=MockMvcBuilders.webAppContextSetup(context).apply(springSecurity())
+            .defaultRequest(get("/").header("User-Agent","TestRunner/1.0").with(r->{r.setRemoteAddr(ip);return r;})).build();
+    }
+    String json(Object o) throws Exception { return mapper.writeValueAsString(o); }
+    MaquinaCreateDTO maquina(String id,int fallas) { return new MaquinaCreateDTO(id,"Máquina de pruebas","Área de pruebas","X",100.0,fallas,null); }
+    BloqueoCreateDTO bloqueo(String id,TipoIntervencion tipo) {
+        return new BloqueoCreateDTO(id,tipo,"Revisión de máquina","Nombre enviado no confiable",true,"nota de prueba",null,
+            tipo==TipoIntervencion.CORRECTIVA?"FALLA-001":null);
+    }
+    TecnicoPrincipal crearTecnico(String username) {
+        tecnicos.crear(new TecnicoCreateDTO(username,"Técnico de prueba","test-only-password-123",Rol.TECNICO));
+        return new TecnicoPrincipal(tecnicoRepository.findByUsernameAndPlantaId(username,"PLANTA-SAN-JOAQUIN").orElseThrow());
+    }
+    @Test void cargaInicial() throws Exception {
+        mvc.perform(get("/api/v1/maquinas").with(anonymous())).andExpect(status().isOk())
+            .andExpect(jsonPath("$",hasSize(6)))
+            .andExpect(jsonPath("$[?(@.id == 'EQ-ENV-01')].mtbf",contains(233.8)));
+    }
+    @Test void autenticacionIndividualYNoApiKeyCompartida() throws Exception {
+        mvc.perform(post("/api/v1/maquinas").with(anonymous()).header("X-API-KEY","legacy-key")
+            .contentType(MediaType.APPLICATION_JSON).content(json(maquina("EQ-TEST-01",1))))
+            .andExpect(status().isUnauthorized()).andExpect(header().string("X-Content-Type-Options","nosniff"));
+        mvc.perform(get("/api/v1/bloqueos").with(anonymous())).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/tecnicos").with(anonymous()).with(httpBasic("supervisor-test","wrong"))).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/tecnicos").with(anonymous()).with(httpBasic("supervisor-test","test-only-password-123")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$[0].passwordHash").doesNotExist());
+    }
+    @Test void crudMaquinasYMtbfNoCalculable() throws Exception {
+        mvc.perform(post("/api/v1/maquinas").contentType(MediaType.APPLICATION_JSON).content(json(maquina("EQ-TEST-01",0))))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.mtbf",nullValue()));
+        mvc.perform(post("/api/v1/maquinas").contentType(MediaType.APPLICATION_JSON).content(json(maquina("EQ-TEST-01",0))))
+            .andExpect(status().isConflict());
+        mvc.perform(put("/api/v1/maquinas/EQ-TEST-01").contentType(MediaType.APPLICATION_JSON)
+            .content(json(new MaquinaUpdateDTO("Nombre actualizado","Nueva área","X",80.0,2))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.mtbf",is(40.0)));
+        mvc.perform(delete("/api/v1/maquinas/EQ-TEST-01")).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/maquinas/EQ-TEST-01")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/maquinas").contentType(MediaType.APPLICATION_JSON).content(json(maquina("EQ-TEST-01",0))))
+            .andExpect(status().isConflict());
+    }
+    @Test void declaracionCandadoRequerida() throws Exception {
+        var dto=new BloqueoCreateDTO("EQ-ENV-01",TipoIntervencion.CORRECTIVA,"Motivo de prueba","Técnico",false,null,null,"F-01");
+        mvc.perform(post("/api/v1/bloqueos").contentType(MediaType.APPLICATION_JSON).content(json(dto)))
+            .andExpect(status().isBadRequest());
+    }
+    @Test void multiLotoYLiberacionRepetida() throws Exception {
+        var uno=bloqueos.crearBloqueo(bloqueo("EQ-PR-04",TipoIntervencion.PREVENTIVA));
+        var dos=bloqueos.crearBloqueo(bloqueo("EQ-PR-04",TipoIntervencion.PREVENTIVA));
+        assertEquals(2,maquinas.obtenerPorId("EQ-PR-04").bloqueosActivos());
+        bloquesCerrar(uno.id());
+        assertTrue(maquinas.obtenerPorId("EQ-PR-04").bloqueada());
+        mvc.perform(put("/api/v1/bloqueos/"+uno.id()+"/liberar")).andExpect(status().isConflict());
+        assertEquals(1,maquinas.obtenerPorId("EQ-PR-04").bloqueosActivos());
+        bloquesCerrar(dos.id());
+        assertFalse(maquinas.obtenerPorId("EQ-PR-04").bloqueada());
+    }
+    void bloquesCerrar(Long id) {
+        org.springframework.security.core.context.SecurityContextHolder.setContext(org.springframework.security.test.context.TestSecurityContextHolder.getContext());
+        bloqueos.liberarBloqueo(id);
+    }
+    @Test void mismaFallaSeCuentaUnaVez() {
+        maquinas.crearMaquina(maquina("EQ-TEST-02",0));
+        var a=bloqueos.crearBloqueo(bloqueo("EQ-TEST-02",TipoIntervencion.CORRECTIVA));
+        var b=bloqueos.crearBloqueo(bloqueo("EQ-TEST-02",TipoIntervencion.CORRECTIVA));
+        assertEquals(a.fallaId(),b.fallaId());
+        assertEquals(1,maquinas.obtenerPorId("EQ-TEST-02").fallasCorrectivas());
+        assertEquals(100.0,maquinas.obtenerPorId("EQ-TEST-02").mtbf());
+        bloqueos.crearBloqueo(bloqueo("EQ-TEST-02",TipoIntervencion.PREVENTIVA));
+        assertEquals(1,maquinas.obtenerPorId("EQ-TEST-02").fallasCorrectivas());
+    }
+    @Test void historialYAuditoria() throws Exception {
+        var b=bloqueos.crearBloqueo(bloqueo("EQ-PR-04",TipoIntervencion.PREVENTIVA));
+        mvc.perform(delete("/api/v1/bloqueos/"+b.id())).andExpect(status().isConflict());
+        bloquesCerrar(b.id());
+        mvc.perform(delete("/api/v1/bloqueos/"+b.id())).andExpect(status().isConflict());
+        mvc.perform(get("/api/v1/bloqueos/"+b.id()+"/eventos")).andExpect(status().isOk())
+            .andExpect(jsonPath("$[*].accion",contains("CREADO","LIBERADO")));
+    }
+    @Test void tecnicoNoPuedeLiberarNiLeerNotasAjenas() throws Exception {
+        var otro=crearTecnico("otro-tecnico");
+        var b=bloqueos.crearBloqueo(bloqueo("EQ-PR-04",TipoIntervencion.PREVENTIVA));
+        mvc.perform(put("/api/v1/bloqueos/"+b.id()+"/liberar").with(user(otro))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/bloqueos/"+b.id()).with(user(otro))).andExpect(status().isOk())
+            .andExpect(jsonPath("$.notasAuditoria",nullValue()));
+        assertEquals(1,maquinas.obtenerPorId("EQ-PR-04").bloqueosActivos());
+        mvc.perform(post("/api/v1/maquinas").with(user(otro)).contentType(MediaType.APPLICATION_JSON).content(json(maquina("EQ-TEST-09",0))))
+            .andExpect(status().isForbidden());
+    }
+    @Test void identidadDelResponsableNoProvieneDelJson() throws Exception {
+        var t=crearTecnico("tecnico-real");
+        mvc.perform(post("/api/v1/bloqueos").with(user(t)).contentType(MediaType.APPLICATION_JSON)
+            .content(json(bloqueo("EQ-PR-04",TipoIntervencion.PREVENTIVA))))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.tecnicoId",is(t.id().intValue())))
+            .andExpect(jsonPath("$.nombreTecnico",is("Técnico de prueba")));
+    }
+    @Test void crudTecnicosBajaLogicaYPermisos() throws Exception {
+        var t=crearTecnico("crud-tecnico");
+        mvc.perform(get("/api/v1/tecnicos/"+t.id())).andExpect(status().isOk()).andExpect(jsonPath("$.password").doesNotExist());
+        mvc.perform(put("/api/v1/tecnicos/"+t.id()).contentType(MediaType.APPLICATION_JSON)
+            .content(json(new TecnicoUpdateDTO("Nombre cambiado",Rol.TECNICO,null)))).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/tecnicos").with(user(t))).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/tecnicos/"+t.id())).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/tecnicos/"+t.id())).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/bloqueos").with(anonymous()).with(httpBasic("crud-tecnico","test-only-password-123")))
+            .andExpect(status().isUnauthorized());
+    }
+    @Test void noDarBajaTecnicoConBloqueoActivo() throws Exception {
+        var t=crearTecnico("tecnico-activo");
+        mvc.perform(post("/api/v1/bloqueos").with(user(t)).contentType(MediaType.APPLICATION_JSON)
+            .content(json(bloqueo("EQ-PR-04",TipoIntervencion.PREVENTIVA)))).andExpect(status().isCreated());
+        mvc.perform(delete("/api/v1/tecnicos/"+t.id())).andExpect(status().isConflict());
+    }
+    @Test void noBorrarMaquinaBloqueada() throws Exception {
+        bloqueos.crearBloqueo(bloqueo("EQ-PR-04",TipoIntervencion.PREVENTIVA));
+        mvc.perform(delete("/api/v1/maquinas/EQ-PR-04")).andExpect(status().isConflict());
+    }
+    @Test void entradasInvalidasYMetodos() throws Exception {
+        mvc.perform(get("/api/v1/maquinas?bloqueada=INVALIDO")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/bloqueos/abc")).andExpect(status().isBadRequest());
+        mvc.perform(patch("/api/v1/maquinas/EQ-PR-04")).andExpect(status().isMethodNotAllowed()).andExpect(header().exists("Allow"));
+        mvc.perform(get("/api/v1/no-existe")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/maquinas").contentType(MediaType.APPLICATION_JSON).content("{"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/maquinas").contentType(MediaType.APPLICATION_JSON)
+            .content(json(new MaquinaCreateDTO("EQ-TEST-03","<b></b>","Área","X",0.0,0,null))))
+            .andExpect(status().isBadRequest());
+    }
+    @Test void referenciaCorrectivaObligatoria() throws Exception {
+        var dto=new BloqueoCreateDTO("EQ-PR-04",TipoIntervencion.CORRECTIVA,"Motivo válido","Técnico",true,null,null,null);
+        mvc.perform(post("/api/v1/bloqueos").contentType(MediaType.APPLICATION_JSON).content(json(dto)))
+            .andExpect(status().isBadRequest());
+    }
+    @Test void corsYCabeceras() throws Exception {
+        mvc.perform(get("/api/v1/maquinas").secure(true)).andExpect(header().string("Strict-Transport-Security",containsString("max-age=")))
+            .andExpect(header().string("X-Frame-Options","DENY")).andExpect(header().string("Content-Security-Policy","default-src 'self'"));
+        mvc.perform(get("/api/v1/maquinas")).andExpect(header().doesNotExist("Strict-Transport-Security"));
+        mvc.perform(options("/api/v1/maquinas").header("Origin","http://localhost:5173").header("Access-Control-Request-Method","GET"))
+            .andExpect(status().isOk()).andExpect(header().string("Access-Control-Allow-Origin","http://localhost:5173"));
+        mvc.perform(options("/api/v1/maquinas").header("Origin","https://no-autorizado.example").header("Access-Control-Request-Method","GET"))
+            .andExpect(status().isForbidden());
+    }
+    @Test void rateLimitRealSinDeshabilitarFiltro() throws Exception {
+        for(int i=0;i<60;i++) mvc.perform(get("/api/v1/maquinas")).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/maquinas")).andExpect(status().isTooManyRequests()).andExpect(header().exists("Retry-After"));
+    }
+    @Test void validacionesAdicionalesYTipoDeContenido() throws Exception {
+        mvc.perform(post("/api/v1/maquinas").contentType(MediaType.TEXT_PLAIN).content("no-json"))
+            .andExpect(status().isUnsupportedMediaType());
+        var bad=new MaquinaCreateDTO("EQ-TEST-08","Máquina","Área","X",100.0,1,"bot");
+        mvc.perform(post("/api/v1/maquinas").contentType(MediaType.APPLICATION_JSON).content(json(bad)))
+            .andExpect(status().isBadRequest());
+        var note=new BloqueoCreateDTO("EQ-PR-04",TipoIntervencion.PREVENTIVA,"Motivo válido",null,true,"x".repeat(2001),null,null);
+        mvc.perform(post("/api/v1/bloqueos").contentType(MediaType.APPLICATION_JSON).content(json(note)))
+            .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/maquinas").header("User-Agent","" )).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/maquinas").header("User-Agent","sqlmap")).andExpect(status().isForbidden());
+    }
+    @Test void passwordUtf8SinTruncamientoYProteccionSupervisor() throws Exception {
+        var principal=(TecnicoPrincipal)org.springframework.security.test.context.TestSecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        mvc.perform(delete("/api/v1/tecnicos/"+principal.id())).andExpect(status().isConflict());
+        var dto=new TecnicoCreateDTO("unicode-pass","Técnico prueba","á".repeat(40),Rol.TECNICO);
+        mvc.perform(post("/api/v1/tecnicos").contentType(MediaType.APPLICATION_JSON).content(json(dto)))
+            .andExpect(status().isBadRequest());
     }
 
-    @Test
-    @DisplayName("Control 6: Exige API Key en POST /api/v1/maquinas (401 si falta)")
-    void testProteccionApiKeyEnMutacion() throws Exception {
-        MaquinaCreateDTO nueva = new MaquinaCreateDTO(
-            "EQ-TEST-99", "Torno CNC Test", "Mecanizado", "⚙️", 100.0, 1, null
-        );
-
-        // Sin header X-API-KEY -> 401 Unauthorized
-        mockMvc.perform(post("/api/v1/maquinas")
-                .header("User-Agent", "TestRunner/1.0")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(nueva)))
-            .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.status", is(401)));
-
-        // Con header X-API-KEY válido -> 201 Created
-        mockMvc.perform(post("/api/v1/maquinas")
-                .header("User-Agent", "TestRunner/1.0")
-                .header("X-API-KEY", API_KEY)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(nueva)))
+    // Regresión: el POST y el GET autorizado deben devolver el texto normalizado persistido.
+    @Test void notasSeNormalizanAntesDeCifrarYResponder() throws Exception {
+        var dto = new BloqueoCreateDTO("EQ-PR-04", TipoIntervencion.PREVENTIVA,
+            "Prueba de notas", null, true,
+            "<b>Revisión</b>\n<script>alert(1)</script>\u0000pendiente", null, null);
+        var result = mvc.perform(post("/api/v1/bloqueos")
+                .contentType(MediaType.APPLICATION_JSON).content(json(dto)))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.id", is("EQ-TEST-99")))
-            .andExpect(jsonPath("$.mtbf", is(100.0)));
+            .andExpect(jsonPath("$.notasAuditoria", is("Revisión pendiente")))
+            .andReturn();
+        long id = mapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+        mvc.perform(get("/api/v1/bloqueos/" + id))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.notasAuditoria", is("Revisión pendiente")));
     }
 
-    @Test
-    @DisplayName("Regla DS 594: Rechaza con 400 Bad Request si confirmacionCandadoDs594 es false")
-    void testRechazoSinCandadoFisicoDs594() throws Exception {
-        BloqueoCreateDTO dtoInvalido = new BloqueoCreateDTO(
-            "EQ-ENV-01",
-            TipoIntervencion.CORRECTIVA,
-            "Falla de prueba sin candado",
-            "Operario Prueba",
-            false, // Violación de DS 594
-            null,
-            null
-        );
-
-        mockMvc.perform(post("/api/v1/bloqueos")
-                .header("User-Agent", "TestRunner/1.0")
-                .header("X-API-KEY", API_KEY)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(dtoInvalido)))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.status", is(400)))
-            .andExpect(jsonPath("$.mensaje", containsString("DS 594")));
-    }
-
-    @Test
-    @DisplayName("Regla Multi-LOTO: Varios técnicos bloquean y la máquina se libera SOLO cuando todos salen")
-    void testReglaMultiLotoConcurrente() {
-        String maquinaId = "EQ-PR-04";
-
-        // Estado inicial
-        MaquinaResponseDTO inicial = maquinaService.obtenerPorId(maquinaId);
-        assertFalse(inicial.bloqueada());
-        assertEquals(0, inicial.bloqueosActivos());
-
-        // Técnico 1 entra
-        BloqueoResponseDTO b1 = bloqueoService.crearBloqueo(new BloqueoCreateDTO(
-            maquinaId, TipoIntervencion.PREVENTIVA, "Mantención eléctrica", "Técnico 1", true, null, null
-        ));
-        MaquinaResponseDTO trasT1 = maquinaService.obtenerPorId(maquinaId);
-        assertTrue(trasT1.bloqueada());
-        assertEquals(1, trasT1.bloqueosActivos());
-
-        // Técnico 2 entra (Multi-LOTO)
-        BloqueoResponseDTO b2 = bloqueoService.crearBloqueo(new BloqueoCreateDTO(
-            maquinaId, TipoIntervencion.PREVENTIVA, "Inspección mecánica", "Técnico 2", true, null, null
-        ));
-        MaquinaResponseDTO trasT2 = maquinaService.obtenerPorId(maquinaId);
-        assertTrue(trasT2.bloqueada());
-        assertEquals(2, trasT2.bloqueosActivos());
-
-        // Técnico 1 se retira y libera su ticket
-        bloqueoService.liberarBloqueo(b1.id());
-        MaquinaResponseDTO trasSalidaT1 = maquinaService.obtenerPorId(maquinaId);
-        // CRÍTICO: La máquina DEBE continuar bloqueada porque el Técnico 2 sigue dentro
-        assertTrue(trasSalidaT1.bloqueada(), "La máquina debe permanecer bloqueada si bloqueosActivos > 0");
-        assertEquals(1, trasSalidaT1.bloqueosActivos());
-
-        // Técnico 2 se retira y libera su ticket
-        bloqueoService.liberarBloqueo(b2.id());
-        MaquinaResponseDTO trasSalidaT2 = maquinaService.obtenerPorId(maquinaId);
-        // Ahora sí: bloqueosActivos == 0 -> bloqueada = false
-        assertFalse(trasSalidaT2.bloqueada(), "La máquina debe desbloquearse cuando el último técnico se retira");
-        assertEquals(0, trasSalidaT2.bloqueosActivos());
-    }
-
-    @Test
-    @DisplayName("Regla MTBF: CORRECTIVA penaliza y suma falla, PREVENTIVA no penaliza")
-    void testReglaMtbfCorrectivaVsPreventiva() {
-        String maquinaId = "EQ-MEZ-01"; // Inicial: horas=715.0, fallas=1, mtbf=715.0
-
-        MaquinaResponseDTO inicial = maquinaService.obtenerPorId(maquinaId);
-        assertEquals(715.0, inicial.mtbf());
-        assertEquals(1, inicial.fallasCorrectivas());
-
-        // 1. Intervención PREVENTIVA -> no debe cambiar fallas ni MTBF
-        BloqueoResponseDTO prev = bloqueoService.crearBloqueo(new BloqueoCreateDTO(
-            maquinaId, TipoIntervencion.PREVENTIVA, "Lubricación rutinaria", "Técnico Mantención", true, null, null
-        ));
-        bloqueoService.liberarBloqueo(prev.id());
-
-        MaquinaResponseDTO trasPrev = maquinaService.obtenerPorId(maquinaId);
-        assertEquals(1, trasPrev.fallasCorrectivas(), "PREVENTIVA no debe aumentar fallas");
-        assertEquals(715.0, trasPrev.mtbf(), "PREVENTIVA no debe alterar MTBF");
-
-        // 2. Intervención CORRECTIVA -> debe sumar +1 a fallas (1 -> 2) y recalcular mtbf (715.0 / 2 = 357.5)
-        BloqueoResponseDTO corr = bloqueoService.crearBloqueo(new BloqueoCreateDTO(
-            maquinaId, TipoIntervencion.CORRECTIVA, "Rotura de eje motriz", "Técnico Mecánico", true, null, null
-        ));
-        bloqueoService.liberarBloqueo(corr.id());
-
-        MaquinaResponseDTO trasCorr = maquinaService.obtenerPorId(maquinaId);
-        assertEquals(2, trasCorr.fallasCorrectivas(), "CORRECTIVA debe sumar +1 a fallas");
-        assertEquals(357.5, trasCorr.mtbf(), "MTBF debe ser 715.0 / 2 = 357.5");
-    }
-
-    @Test
-    @DisplayName("Seguridad Industrial: Prohibido eliminar un bloqueo en estado ACTIVO (409 Conflict)")
-    void testProhibidoEliminarBloqueoActivo() throws Exception {
-        BloqueoResponseDTO activo = bloqueoService.crearBloqueo(new BloqueoCreateDTO(
-            "EQ-EXT-02", TipoIntervencion.PREVENTIVA, "Revisión de boquilla", "Técnico Activo", true, null, null
-        ));
-
-        // Intento de borrado con DELETE -> 409 Conflict
-        mockMvc.perform(delete("/api/v1/bloqueos/" + activo.id())
-                .header("User-Agent", "TestRunner/1.0")
-                .header("X-API-KEY", API_KEY))
-            .andExpect(status().isConflict())
-            .andExpect(jsonPath("$.status", is(409)))
-            .andExpect(jsonPath("$.mensaje", containsString("ACTIVO")));
-
-        // Si se libera primero, entonces el DELETE debe funcionar devolviendo 204 No Content
-        bloqueoService.liberarBloqueo(activo.id());
-
-        mockMvc.perform(delete("/api/v1/bloqueos/" + activo.id())
-                .header("User-Agent", "TestRunner/1.0")
-                .header("X-API-KEY", API_KEY))
-            .andExpect(status().isNoContent());
-    }
-
-    @Test
-    @DisplayName("Control 18: Cabeceras de seguridad HTTP presentes en la respuesta")
-    void testCabecerasDeSeguridadPresentes() throws Exception {
-        mockMvc.perform(get("/api/v1/maquinas")
-                .header("User-Agent", "TestRunner/1.0"))
-            .andExpect(header().string("X-Content-Type-Options", "nosniff"))
-            .andExpect(header().string("X-Frame-Options", "DENY"))
-            .andExpect(header().string("Content-Security-Policy", "default-src 'self'"))
-            .andExpect(header().string("Referrer-Policy", "strict-origin-when-cross-origin"))
-            .andExpect(header().string("Strict-Transport-Security", containsString("max-age=31536000")));
+    // Una nota ausente o vacía tras normalizar no debe persistirse como otro valor.
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" \r\n\t ", "<b></b>"})
+    void notasSinContenidoSonNullEnAltaYConsulta(String nota) throws Exception {
+        var dto = new BloqueoCreateDTO("EQ-PR-04", TipoIntervencion.PREVENTIVA,
+            "Prueba de nota vacía", null, true, nota, null, null);
+        var result = mvc.perform(post("/api/v1/bloqueos")
+                .contentType(MediaType.APPLICATION_JSON).content(json(dto)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.notasAuditoria", nullValue()))
+            .andReturn();
+        long id = mapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+        mvc.perform(get("/api/v1/bloqueos/" + id))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.notasAuditoria", nullValue()));
     }
 }

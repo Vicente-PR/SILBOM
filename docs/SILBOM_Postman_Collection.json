@@ -1,260 +1,747 @@
 {
   "info": {
-    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "name": "SILBOM API - Planta San Joaquín (Colección Oficial Hito 2)",
-    "description": "Colección completa para la demostración en vivo de 7 minutos del Hito 2 de SILBOM.\n\nControles evaluados:\n1. Auditoría LOTO y Energía Cero\n2. Bloqueo Concurrente Multi-LOTO\n3. Recálculo automático de MTBF (Correctiva vs Preventiva)\n4. Cumplimiento legal del candado físico (DS 594 y DS 44)\n5. 20 Controles de Ciberseguridad Backend (API Key, Rate Limiting, Anti-IDOR, Headers, Inmutabilidad).",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "name": "SILBOM Hito 2 — Backend auditado",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Configura username/password y tecnicoPassword en un entorno local. Credenciales vacías por diseño. Ejecutar en una API recién iniciada: se conservan límites de 20 escrituras/minuto. Los tickets históricos no se borran."
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      {
+        "key": "username",
+        "value": "{{username}}",
+        "type": "string"
+      },
+      {
+        "key": "password",
+        "value": "{{password}}",
+        "type": "string"
+      }
+    ]
   },
   "variable": [
     {
-      "key": "base_url",
-      "value": "http://localhost:8080/api/v1",
-      "type": "string"
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8080/api/v1"
     },
     {
-      "key": "api_key",
-      "value": "CAMBIAR_API_KEY",
-      "type": "string"
+      "key": "username",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "tecnicoPassword",
+      "value": ""
     }
   ],
   "item": [
     {
-      "name": "1. Catálogo de Máquinas",
-      "item": [
+      "name": "01. Preparar demo y leer catálogo público",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/maquinas",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
         {
-          "name": "1.1 Listar Todas las Máquinas (200 OK)",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/maquinas",
-              "host": ["{{base_url}}"],
-              "path": ["maquinas"]
-            },
-            "description": "Devuelve las 6 máquinas de Planta San Joaquín cargadas en el seed inicial."
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
           }
         },
         {
-          "name": "1.2 Filtrar Máquinas Bloqueadas (200 OK)",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/maquinas?bloqueada=true",
-              "host": ["{{base_url}}"],
-              "path": ["maquinas"],
-              "query": [
-                { "key": "bloqueada", "value": "true" }
-              ]
-            },
-            "description": "Filtra en el backend las máquinas que se encuentran actualmente bloqueadas por protocolos LOTO."
-          }
-        },
-        {
-          "name": "1.3 Obtener Máquina por ID (EQ-ENV-01) (200 OK)",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/maquinas/EQ-ENV-01",
-              "host": ["{{base_url}}"],
-              "path": ["maquinas", "EQ-ENV-01"]
-            },
-            "description": "Obtiene la Envasadora Rotativa con sus métricas iniciales (horas: 701.5, fallas: 3, mtbf: 233.8)."
-          }
-        },
-        {
-          "name": "1.4 Crear Nueva Máquina (201 Created)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-API-KEY", "value": "{{api_key}}" },
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"id\": \"EQ-TOR-01\",\n  \"nombre\": \"Torno Mecánico de Precisión\",\n  \"area\": \"Taller de Matricería\",\n  \"icono\": \"🔧\",\n  \"horasOperativas\": 450.0,\n  \"fallasCorrectivas\": 2\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/maquinas",
-              "host": ["{{base_url}}"],
-              "path": ["maquinas"]
-            },
-            "description": "Crea una nueva máquina. Calcula automáticamente su MTBF inicial = 450.0 / 2 = 225.0."
-          }
-        },
-        {
-          "name": "1.5 Fallo: Intentar Crear Máquina sin API Key (401 Unauthorized)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"id\": \"EQ-HAK-99\",\n  \"nombre\": \"Máquina Intruso\",\n  \"area\": \"Área Desconocida\",\n  \"icono\": \"⚠️\",\n  \"horasOperativas\": 10.0,\n  \"fallasCorrectivas\": 0\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/maquinas",
-              "host": ["{{base_url}}"],
-              "path": ["maquinas"]
-            },
-            "description": "Demostración de Control 6: Petición de mutación rechazada con 401 por falta de cabecera X-API-KEY."
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const tag = Array.from({length:4}, () => String.fromCharCode(65+Math.floor(Math.random()*26))).join(\"\");",
+              "pm.collectionVariables.set(\"maquinaId\", \"EQ-\"+tag+\"-01\");",
+              "pm.collectionVariables.set(\"usernameDemo\", \"demo-\"+Date.now());",
+              "pm.collectionVariables.set(\"referenciaFalla\", \"FALLA-\"+Date.now());"
+            ]
           }
         }
       ]
     },
     {
-      "name": "2. Auditoría LOTO y Reglas de Negocio",
-      "item": [
-        {
-          "name": "2.1 Listar Historial de Bloqueos (200 OK)",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/bloqueos",
-              "host": ["{{base_url}}"],
-              "path": ["bloqueos"]
-            },
-            "description": "Devuelve el historial ordenado de tickets LOTO del más reciente al más antiguo."
+      "name": "02. Escritura sin autenticación",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/maquinas",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
           }
         },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
         {
-          "name": "2.2 REGLA LEGAL: Fallo al Intentar Bloquear sin Candado Físico DS 594 (400 Bad Request)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-API-KEY", "value": "{{api_key}}" },
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"maquinaId\": \"EQ-ENV-01\",\n  \"tipoIntervencion\": \"CORRECTIVA\",\n  \"motivo\": \"Falla en cilindro neumático superior\",\n  \"nombreTecnico\": \"Vicente M.\",\n  \"confirmacionCandadoDs594\": false\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/bloqueos",
-              "host": ["{{base_url}}"],
-              "path": ["bloqueos"]
-            },
-            "description": "Demostración del control legal: Si el técnico no declara haber colocado el candado físico mecánico según DS 594, la API rechaza con 400 Bad Request."
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
           }
-        },
-        {
-          "name": "2.3 Técnico 1 Bloquea Máquina (CORRECTIVA) -> MTBF Recalculado (201 Created)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-API-KEY", "value": "{{api_key}}" },
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"maquinaId\": \"EQ-ENV-01\",\n  \"tipoIntervencion\": \"CORRECTIVA\",\n  \"motivo\": \"Atascamiento severo de engranaje principal\",\n  \"nombreTecnico\": \"Vicente M.\",\n  \"confirmacionCandadoDs594\": true,\n  \"notasConfidenciales\": \"El seguro del rotor estaba deformado por fatiga térmica\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/bloqueos",
-              "host": ["{{base_url}}"],
-              "path": ["bloqueos"]
-            },
-            "description": "Crea el bloqueo #4. La máquina pasa a 'bloqueada = true', 'bloqueosActivos = 1'. Al ser CORRECTIVA suma +1 a fallas (3 -> 4) y recalcula MTBF (701.5 / 4 = 175.4)."
+        }
+      ]
+    },
+    {
+      "name": "03. Crear máquina",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
           }
-        },
-        {
-          "name": "2.4 MULTI-LOTO: Técnico 2 Bloquea Misma Máquina (PREVENTIVA) (201 Created)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-API-KEY", "value": "{{api_key}}" },
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"maquinaId\": \"EQ-ENV-01\",\n  \"tipoIntervencion\": \"PREVENTIVA\",\n  \"motivo\": \"Aprovechamiento de parada para calibración de sensores ópticos\",\n  \"nombreTecnico\": \"Bastián A.\",\n  \"confirmacionCandadoDs594\": true\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/bloqueos",
-              "host": ["{{base_url}}"],
-              "path": ["bloqueos"]
-            },
-            "description": "Crea el bloqueo #5 sobre la misma máquina. Multi-LOTO: 'bloqueosActivos' pasa a 2. Al ser PREVENTIVA, no penaliza el MTBF."
+        ],
+        "url": "{{baseUrl}}/maquinas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"id\": \"{{maquinaId}}\", \"nombre\": \"Máquina demostración\", \"area\": \"Taller de pruebas\", \"icono\": \"X\", \"horasOperativas\": 100.0, \"fallasCorrectivas\": 0}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
           }
-        },
+        }
+      },
+      "event": [
         {
-          "name": "2.5 MULTI-LOTO: Técnico 1 Libera su Bloqueo -> Máquina SIGUE BLOQUEADA (200 OK)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "X-API-KEY", "value": "{{api_key}}" },
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/bloqueos/4/liberar",
-              "host": ["{{base_url}}"],
-              "path": ["bloqueos", "4", "liberar"]
-            },
-            "description": "El técnico 1 retira su candado. 'bloqueosActivos' disminuye a 1. La máquina DEBE permanecer en 'bloqueada = true' porque el técnico 2 sigue trabajando dentro."
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.test(\"MTBF no calculable\",()=>pm.expect(pm.response.json().mtbf).to.eql(null));"
+            ]
           }
-        },
-        {
-          "name": "2.6 MULTI-LOTO: Técnico 2 Libera su Bloqueo -> Máquina DESBLOQUEADA (200 OK)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "X-API-KEY", "value": "{{api_key}}" },
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/bloqueos/5/liberar",
-              "host": ["{{base_url}}"],
-              "path": ["bloqueos", "5", "liberar"]
-            },
-            "description": "El último técnico retira su candado. 'bloqueosActivos' llega a 0 y la máquina finalmente pasa a 'bloqueada = false'."
+        }
+      ]
+    },
+    {
+      "name": "04. Consultar máquina",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
           }
-        },
+        ],
+        "url": "{{baseUrl}}/maquinas/{{maquinaId}}"
+      },
+      "event": [
         {
-          "name": "2.7 SEGURIDAD INDUSTRIAL: Prohibido Eliminar Bloqueo ACTIVO (409 Conflict)",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              { "key": "X-API-KEY", "value": "{{api_key}}" },
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/bloqueos/1",
-              "host": ["{{base_url}}"],
-              "path": ["bloqueos", "1"]
-            },
-            "description": "Si un bloqueo estuviera en estado ACTIVO, la API rechaza el borrado con 409 Conflict para proteger la vida de los técnicos."
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
           }
-        },
+        }
+      ]
+    },
+    {
+      "name": "05. Actualizar máquina",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/maquinas/{{maquinaId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nombre\": \"Máquina demostración\", \"area\": \"Taller de pruebas\", \"icono\": \"X\", \"horasOperativas\": 100.0, \"fallasCorrectivas\": 0}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
         {
-          "name": "2.8 Eliminar Registro Histórico CERRADO (204 No Content)",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              { "key": "X-API-KEY", "value": "{{api_key}}" },
-              { "key": "User-Agent", "value": "PostmanRuntime/7.32.0" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/bloqueos/1",
-              "host": ["{{base_url}}"],
-              "path": ["bloqueos", "1"]
-            },
-            "description": "Permite purgar un registro histórico ya cerrado devolviendo 204 No Content."
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06. Crear técnico",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/tecnicos",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{usernameDemo}}\", \"nombre\": \"Técnico demo\", \"password\": \"{{tecnicoPassword}}\", \"rol\": \"TECNICO\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"tecnicoId\",pm.response.json().id);",
+              "pm.test(\"Sin hash\",()=>pm.expect(pm.response.json()).not.to.have.property(\"passwordHash\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07. Leer técnico",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/tecnicos/{{tecnicoId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08. Actualizar técnico",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/tecnicos/{{tecnicoId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nombre\": \"Técnico actualizado\", \"rol\": \"TECNICO\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09. Baja lógica de técnico sin bloqueos",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/tecnicos/{{tecnicoId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Técnico dado de baja no aparece",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/tecnicos/{{tecnicoId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Rechazar declaración de candado ausente",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/bloqueos",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"maquinaId\": \"{{maquinaId}}\", \"tipoIntervencion\": \"CORRECTIVA\", \"motivo\": \"Prueba de falla compartida\", \"confirmacionCandadoDs594\": false, \"referenciaFalla\": \"{{referenciaFalla}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Registrar participante 1 de la misma falla",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/bloqueos",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"maquinaId\": \"{{maquinaId}}\", \"tipoIntervencion\": \"CORRECTIVA\", \"motivo\": \"Prueba de falla compartida\", \"confirmacionCandadoDs594\": true, \"referenciaFalla\": \"{{referenciaFalla}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"bloqueo1\",pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. Registrar participante 2 de la misma falla",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/bloqueos",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"maquinaId\": \"{{maquinaId}}\", \"tipoIntervencion\": \"CORRECTIVA\", \"motivo\": \"Prueba de falla compartida\", \"confirmacionCandadoDs594\": true, \"referenciaFalla\": \"{{referenciaFalla}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"bloqueo2\",pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14. Dos bloqueos, una falla",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/maquinas/{{maquinaId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const m=pm.response.json();",
+              "pm.test(\"Multi-LOTO y falla única\",()=>{pm.expect(m.bloqueosActivos).to.eql(2);pm.expect(m.fallasCorrectivas).to.eql(1);pm.expect(m.mtbf).to.eql(100);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15. No borrar ticket activo",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/bloqueos/{{bloqueo1}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16. Liberar primer ticket",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/bloqueos/{{bloqueo1}}/liberar"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17. Sigue bloqueada",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/maquinas/{{maquinaId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Queda un bloqueo\",()=>{pm.expect(pm.response.json().bloqueada).to.eql(true);pm.expect(pm.response.json().bloqueosActivos).to.eql(1);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18. No descontar dos veces",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/bloqueos/{{bloqueo1}}/liberar"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19. No borrar ticket histórico",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/bloqueos/{{bloqueo1}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20. Auditoría de creación y liberación",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/bloqueos/{{bloqueo1}}/eventos"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Eventos\",()=>pm.expect(pm.response.json().map(e=>e.accion)).to.eql([\"CREADO\",\"LIBERADO\"]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21. Liberar último ticket",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/bloqueos/{{bloqueo2}}/liberar"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22. Sin bloqueos digitales activos",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/maquinas/{{maquinaId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Sin bloqueos\",()=>{pm.expect(pm.response.json().bloqueada).to.eql(false);pm.expect(pm.response.json().bloqueosActivos).to.eql(0);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "23. Baja lógica de máquina conserva historial",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/maquinas/{{maquinaId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "24. Máquina retirada no aparece en catálogo",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "User-Agent",
+            "value": "SILBOM-Postman/2.0"
+          }
+        ],
+        "url": "{{baseUrl}}/maquinas/{{maquinaId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+            ]
           }
         }
       ]

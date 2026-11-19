@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.5</version>
+        <version>3.5.16</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
@@ -24,6 +24,10 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
         <!-- Spring Boot Starter Web: Expone la API REST y embebe el servidor Tomcat -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -96,4 +100,14 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>postgres-it</id>
+            <build><plugins><plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions><execution><goals><goal>integration-test</goal><goal>verify</goal></goals></execution></executions>
+            </plugin></plugins></build>
+        </profile>
+    </profiles>
 </project>

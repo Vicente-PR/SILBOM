@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 /**
  * QUÉ HACE:
@@ -25,7 +27,11 @@ public interface MaquinaRepository extends JpaRepository<Maquina, String> {
     /**
      * Búsqueda segura por ID y planta autorizada (Anti-IDOR).
      */
-    Optional<Maquina> findByIdAndPlantaId(String id, String plantaId);
+    Optional<Maquina> findByIdAndPlantaIdAndActivaTrue(String id, String plantaId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from Maquina m where m.id=:id and m.plantaId=:planta and m.activa=true")
+    Optional<Maquina> findForUpdate(@Param("id") String id, @Param("planta") String planta);
 
     /**
      * Comprueba existencia dentro de la planta autorizada.
@@ -36,7 +42,7 @@ public interface MaquinaRepository extends JpaRepository<Maquina, String> {
      * Lista máquinas con filtro opcional de estado 'bloqueada'.
      * Cero concatenación de cadenas SQL.
      */
-    @Query("SELECT m FROM Maquina m WHERE m.plantaId = :plantaId " +
+    @Query("SELECT m FROM Maquina m WHERE m.plantaId = :plantaId AND m.activa=true " +
            "AND (:bloqueada IS NULL OR m.bloqueada = :bloqueada) " +
            "ORDER BY m.id ASC")
     List<Maquina> findMaquinasFiltradas(

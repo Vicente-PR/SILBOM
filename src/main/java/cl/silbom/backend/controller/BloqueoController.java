@@ -4,7 +4,7 @@ import cl.silbom.backend.dto.BloqueoCreateDTO;
 import cl.silbom.backend.dto.BloqueoResponseDTO;
 import cl.silbom.backend.model.EstadoBloqueo;
 import cl.silbom.backend.service.BloqueoService;
-import cl.silbom.backend.security.ApiKeyAuthFilter;
+import cl.silbom.backend.dto.EventoLotoResponseDTO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -41,7 +41,7 @@ public class BloqueoController {
         @RequestParam(required = false) EstadoBloqueo estado,
         HttpServletRequest request
     ) {
-        List<BloqueoResponseDTO> lista = bloqueoService.listarBloqueos(maquinaId, estado, tieneApiKeyValida(request));
+        List<BloqueoResponseDTO> lista = bloqueoService.listarBloqueos(maquinaId, estado, true);
         return ResponseEntity.ok(lista);
     }
 
@@ -50,7 +50,7 @@ public class BloqueoController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<BloqueoResponseDTO> obtenerPorId(@PathVariable Long id, HttpServletRequest request) {
-        BloqueoResponseDTO bloqueo = bloqueoService.obtenerPorId(id, tieneApiKeyValida(request));
+        BloqueoResponseDTO bloqueo = bloqueoService.obtenerPorId(id, true);
         return ResponseEntity.ok(bloqueo);
     }
 
@@ -81,8 +81,8 @@ public class BloqueoController {
         return ResponseEntity.noContent().build();
     }
 
-    /** True si el ApiKeyAuthFilter marcó la petición como autenticada (permite ver notas confidenciales). */
-    private boolean tieneApiKeyValida(HttpServletRequest request) {
-        return Boolean.TRUE.equals(request.getAttribute(ApiKeyAuthFilter.ATTR_AUTENTICADO));
+    @GetMapping("/{id}/eventos")
+    public ResponseEntity<List<EventoLotoResponseDTO>> eventos(@PathVariable Long id) {
+        return ResponseEntity.ok(bloqueoService.eventos(id));
     }
 }

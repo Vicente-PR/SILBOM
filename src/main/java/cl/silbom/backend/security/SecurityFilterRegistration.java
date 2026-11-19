@@ -29,10 +29,4 @@ public class SecurityFilterRegistration {
         return reg;
     }
 
-    @Bean
-    public FilterRegistrationBean<ApiKeyAuthFilter> apiKeyAuthFilterRegistration(ApiKeyAuthFilter filter) {
-        FilterRegistrationBean<ApiKeyAuthFilter> reg = new FilterRegistrationBean<>(filter);
-        reg.setEnabled(false);
-        return reg;
-    }
 }
